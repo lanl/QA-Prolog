@@ -1,0 +1,74 @@
+{
+// This is the parser for Quantum-Computing Prolog.  It was written using the
+// Pigeon parser generator's DSL (https://github.com/PuerkitoBio/pigeon) and is
+// inspired by the Prolog grammar found at
+// https://github.com/simonkrenger/ch.bfh.bti7064.w2013.PrologParser/blob/master/doc/prolog-bnf-grammar.txt
+// but with various bugs corrected and the grammar converted to a PEG.
+
+package main
+
+// An ASTNodeType indicates the type of AST node we're working with.
+type ASTNodeType int
+
+// Declare all of the AST node types we intend to use.
+const (
+	UnknownType  = ASTNodeType(iota) // Should never be used
+	NumeralType                      // Non-negative integer (e.g., "123")
+	AtomType                         // Atom, with quotes stripped (e.g., "scott")
+	VariableType                     // Variable (e.g., "Name")
+)
+
+// This is a temporary main() for testing the parser.
+func main() {
+    if len(os.Args) != 2 {
+        log.Fatalf("Usage: %s <text>", os.Args[0])
+    }
+    got, err := ParseReader("", strings.NewReader(os.Args[1]))
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Println("=", got)
+}
+
+}
+
+Temporary_test <- whatever:Atom EOF {
+	return fmt.Sprintf("%#v", whatever), nil
+}
+
+Variable <- Uppercase_letter Symbol_trailer {
+	return string(c.text), nil
+}
+
+Atom <- Small_atom {
+	return string(c.text), nil
+} / Single_quoted_string {
+	s := string(c.text)
+	return s[1 : len(s)-1], nil
+}
+
+Single_quoted_string <- "'" Single_quoted_string_char* "'"
+
+Single_quoted_string_char <- Character / '\\' .
+
+Small_atom <- Lowercase_letter Symbol_trailer {
+	return string(c.text), nil
+}
+
+Symbol_trailer <- (Lowercase_letter / Uppercase_letter / Digit)*
+
+Character <- Lowercase_letter / Uppercase_letter / Digit / Not_single_quote
+
+Lowercase_letter <- [\p{Ll}]
+
+Uppercase_letter <- [\p{Lu}_]
+
+Digit <- [\p{Nd}]
+
+Numeral <- Digit+ {
+	return strconv.Atoi(string(c.text))
+}
+
+Not_single_quote <- [^']
+
+EOF <- !.
