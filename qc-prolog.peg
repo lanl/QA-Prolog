@@ -18,6 +18,13 @@ const (
 	VariableType                     // Variable (e.g., "Name")
 )
 
+// An ASTNode defines a single node in an abstract syntax tree.
+type ASTNode struct {
+	Type  ASTNodeType // What this node represents
+	Value interface{} // Node's value (int, string, etc.)
+	Pos   position    // Node's position in the input file
+}
+
 // This is a temporary main() for testing the parser.
 func main() {
     if len(os.Args) != 2 {
@@ -36,15 +43,32 @@ Temporary_test <- whatever:Atom EOF {
 	return fmt.Sprintf("%#v", whatever), nil
 }
 
+// Return an AST node of type VariableType.
 Variable <- Uppercase_letter Symbol_trailer {
-	return string(c.text), nil
+	node := ASTNode{
+		Type:  VariableType,
+		Value: string(c.text),
+		Pos:   c.pos,
+	}
+	return node, nil
 }
 
+// Return an AST node of type AtomType.
 Atom <- Small_atom {
-	return string(c.text), nil
+	node := ASTNode{
+		Type:  VariableType,
+		Value: string(c.text),
+		Pos:   c.pos,
+	}
+	return node, nil
 } / Single_quoted_string {
 	s := string(c.text)
-	return s[1 : len(s)-1], nil
+	node := ASTNode{
+		Type:  VariableType,
+		Value: s[1 : len(s)-1],
+		Pos:   c.pos,
+	}
+	return node, nil
 }
 
 Single_quoted_string <- "'" Single_quoted_string_char* "'"
@@ -65,8 +89,18 @@ Uppercase_letter <- [\p{Lu}_]
 
 Digit <- [\p{Nd}]
 
+// Return an AST node of type NumeralType.
 Numeral <- Digit+ {
-	return strconv.Atoi(string(c.text))
+	num, err := strconv.Atoi(string(c.text))
+	if err != nil {
+		return nil, err
+	}
+	node := ASTNode{
+		Type:  NumeralType,
+		Value: num,
+		Pos:   c.pos,
+	}
+	return node, nil
 }
 
 Not_single_quote <- [^']
