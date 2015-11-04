@@ -16,13 +16,15 @@ const (
 	NumeralType                      // Non-negative integer (e.g., "123")
 	AtomType                         // Atom, with quotes stripped (e.g., "scott")
 	VariableType                     // Variable (e.g., "Name")
+	TermType                         // Term (a numeral, atom, or variable)
 )
 
 // An ASTNode defines a single node in an abstract syntax tree.
 type ASTNode struct {
-	Type  ASTNodeType // What this node represents
-	Value interface{} // Node's value (int, string, etc.)
-	Pos   position    // Node's position in the input file
+	Type     ASTNodeType // What this node represents
+	Value    interface{} // Node's value (int, string, etc.)
+	Pos      position    // Node's position in the input file
+	Children []*ASTNode  // Child AST node(s), if any
 }
 
 // This is a temporary main() for testing the parser.
@@ -39,8 +41,20 @@ func main() {
 
 }
 
-Temporary_test <- whatever:Atom EOF {
+Temporary_test <- whatever:Term EOF {
 	return fmt.Sprintf("%#v", whatever), nil
+}
+
+// Return an AST node of type TermType.
+Term <- child:(Numeral / Atom / Variable) {
+	childNode := child.(*ASTNode)
+	node := ASTNode{
+		Type:     TermType,
+		Value:    string(c.text),
+		Pos:      c.pos,
+		Children: []*ASTNode{childNode},
+	}
+	return &node, nil
 }
 
 // Return an AST node of type VariableType.
@@ -50,7 +64,7 @@ Variable <- Uppercase_letter Symbol_trailer {
 		Value: string(c.text),
 		Pos:   c.pos,
 	}
-	return node, nil
+	return &node, nil
 }
 
 // Return an AST node of type AtomType.
@@ -60,7 +74,7 @@ Atom <- Small_atom {
 		Value: string(c.text),
 		Pos:   c.pos,
 	}
-	return node, nil
+	return &node, nil
 } / Single_quoted_string {
 	s := string(c.text)
 	node := ASTNode{
@@ -68,7 +82,7 @@ Atom <- Small_atom {
 		Value: s[1 : len(s)-1],
 		Pos:   c.pos,
 	}
-	return node, nil
+	return &node, nil
 }
 
 Single_quoted_string <- "'" Single_quoted_string_char* "'"
@@ -100,7 +114,7 @@ Numeral <- Digit+ {
 		Value: num,
 		Pos:   c.pos,
 	}
-	return node, nil
+	return &node, nil
 }
 
 Not_single_quote <- [^']
