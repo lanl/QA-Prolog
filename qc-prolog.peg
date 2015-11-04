@@ -8,15 +8,19 @@
 package main
 
 // An ASTNodeType indicates the type of AST node we're working with.
+//go:generate stringer -type=ASTNodeType
 type ASTNodeType int
 
 // Declare all of the AST node types we intend to use.
 const (
-	UnknownType  = ASTNodeType(iota) // Should never be used
+	UnknownType   ASTNodeType = iota // Should never be used
 	NumeralType                      // Non-negative integer (e.g., "123")
 	AtomType                         // Atom, with quotes stripped (e.g., "scott")
 	VariableType                     // Variable (e.g., "Name")
 	TermType                         // Term (a numeral, atom, or variable)
+	TermListType                     // List of terms
+	PredicateType                    // Predicate (e.g., "likes(john, mary)")
+	StructureType                    // Structure (e.g., "likes(john, mary)")
 )
 
 // An ASTNode defines a single node in an abstract syntax tree.
@@ -25,6 +29,29 @@ type ASTNode struct {
 	Value    interface{} // Node's value (int, string, etc.)
 	Pos      position    // Node's position in the input file
 	Children []*ASTNode  // Child AST node(s), if any
+}
+
+// String outputs an AST node and all its children, mostly for debugging.
+func (a *ASTNode) String() string {
+	result := ""
+	var showAll func(*ASTNode, int)
+	showAll = func(n *ASTNode, depth int) {
+		// Display this node.
+		indent := strings.Repeat("  ", depth)
+		result += fmt.Sprintf("%sType:  %s\n", indent, n.Type)
+		result += fmt.Sprintf("%sValue: %#v\n", indent, n.Value)
+		result += fmt.Sprintf("%sPos:   %d:%d\n", indent, n.Pos.line, n.Pos.col)
+
+		// Recursively display all children.
+		for i, child := range n.Children {
+			if i > 0 {
+				result += "\n"
+			}
+			showAll(child, depth+1)
+		}
+	}
+	showAll(a, 0)
+	return result
 }
 
 // This is a temporary main() for testing the parser.
@@ -36,23 +63,77 @@ func main() {
     if err != nil {
         log.Fatal(err)
     }
-    fmt.Println("=", got)
+    fmt.Println(got)
 }
 
 }
 
-Temporary_test <- whatever:Term EOF {
-	return fmt.Sprintf("%#v", whatever), nil
+Temporary_test <- whatever:Predicate EOF {
+	return fmt.Sprintf("%s", whatever), nil
+}
+
+// Return an AST node of type PredicateType.
+Predicate <- atom:Atom WS* '(' WS* tl:TermList WS* ')' {
+	node := ASTNode{
+		Type:     PredicateType,
+		Value:    string(c.text),
+		Pos:      c.pos,
+		Children: []*ASTNode{atom.(*ASTNode), tl.(*ASTNode)},
+	}
+	return &node, nil
+} / atom:Atom {
+	node := ASTNode{
+		Type:     PredicateType,
+		Value:    string(c.text),
+		Pos:      c.pos,
+		Children: []*ASTNode{atom.(*ASTNode)},
+	}
+	return &node, nil
+}
+
+// Return an AST node of type TermList.
+TermList <- first:Term WS* "," WS* rest:TermList {
+	// Prepend a Term onto an existing TermList.
+	termNode := first.(*ASTNode)
+	termListNode := rest.(*ASTNode)
+	node := ASTNode{
+		Type:     TermListType,
+		Value:    string(c.text),
+		Pos:      c.pos,
+		Children: append([]*ASTNode{termNode}, termListNode.Children...),
+	}
+	return &node, nil
+} / only:Term {
+	// Return a TermList containing a single Term.
+	termNode := only.(*ASTNode)
+	node := ASTNode{
+		Type:     TermListType,
+		Value:    string(c.text),
+		Pos:      c.pos,
+		Children: []*ASTNode{termNode},
+	}
+	return &node, nil
 }
 
 // Return an AST node of type TermType.
-Term <- child:(Numeral / Atom / Variable) {
+Term <- child:(Numeral / Structure / Atom / Variable) {
 	childNode := child.(*ASTNode)
 	node := ASTNode{
 		Type:     TermType,
 		Value:    string(c.text),
 		Pos:      c.pos,
 		Children: []*ASTNode{childNode},
+	}
+	return &node, nil
+}
+
+// Return an AST node of type StructureType.
+Structure <- atom:Atom WS* '(' WS* tl:TermList WS* ')' {
+	node := ASTNode{
+		Type:     StructureType,
+		Value:    string(c.text),
+		Pos:      c.pos,
+		Children: []*ASTNode{atom.(*ASTNode), tl.(*ASTNode)},
 	}
 	return &node, nil
 }
@@ -70,7 +151,7 @@ Variable <- Uppercase_letter Symbol_trailer {
 // Return an AST node of type AtomType.
 Atom <- Small_atom {
 	node := ASTNode{
-		Type:  VariableType,
+		Type:  AtomType,
 		Value: string(c.text),
 		Pos:   c.pos,
 	}
@@ -78,7 +159,7 @@ Atom <- Small_atom {
 } / Single_quoted_string {
 	s := string(c.text)
 	node := ASTNode{
-		Type:  VariableType,
+		Type:  AtomType,
 		Value: s[1 : len(s)-1],
 		Pos:   c.pos,
 	}
@@ -102,6 +183,8 @@ Lowercase_letter <- [\p{Ll}]
 Uppercase_letter <- [\p{Lu}_]
 
 Digit <- [\p{Nd}]
+
+WS <- [\p{Zs}\n\r\t]
 
 // Return an AST node of type NumeralType.
 Numeral <- Digit+ {
