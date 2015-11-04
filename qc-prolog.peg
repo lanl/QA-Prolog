@@ -13,14 +13,15 @@ type ASTNodeType int
 
 // Declare all of the AST node types we intend to use.
 const (
-	UnknownType   ASTNodeType = iota // Should never be used
-	NumeralType                      // Non-negative integer (e.g., "123")
-	AtomType                         // Atom, with quotes stripped (e.g., "scott")
-	VariableType                     // Variable (e.g., "Name")
-	TermType                         // Term (a numeral, atom, or variable)
-	TermListType                     // List of terms
-	PredicateType                    // Predicate (e.g., "likes(john, mary)")
-	StructureType                    // Structure (e.g., "likes(john, mary)")
+	UnknownType       ASTNodeType = iota // Should never be used
+	NumeralType                          // Non-negative integer (e.g., "123")
+	AtomType                             // Atom, with quotes stripped (e.g., "scott")
+	VariableType                         // Variable (e.g., "Name")
+	TermType                             // Term (a numeral, atom, or variable)
+	TermListType                         // List of terms
+	PredicateType                        // Predicate (e.g., "likes(john, mary)")
+	StructureType                        // Structure (e.g., "likes(john, mary)")
+	PredicateListType                    // List of predicates (e.g., "likes(john, X), likes(X, mary)")
 )
 
 // An ASTNode defines a single node in an abstract syntax tree.
@@ -68,12 +69,35 @@ func main() {
 
 }
 
-Temporary_test <- whatever:Predicate EOF {
+Temporary_test <- whatever:PredicateList EOF {
 	return fmt.Sprintf("%s", whatever), nil
 }
 
+// Return an AST node of type PredicateListType.
+PredicateList <- p:Predicate Skip ',' Skip ps:PredicateList {
+	// Prepend a Predicate onto an existing PredicateList.
+	predNode := p.(*ASTNode)
+	predListNode := ps.(*ASTNode)
+	node := ASTNode{
+		Type:     PredicateListType,
+		Value:    string(c.text),
+		Pos:      c.pos,
+		Children: append([]*ASTNode{predNode}, predListNode.Children...),
+	}
+	return &node, nil
+} / p:Predicate {
+	// Return a PredicateList containing a single Predicate.
+	node := ASTNode{
+		Type:     PredicateListType,
+		Value:    string(c.text),
+		Pos:      c.pos,
+		Children: append([]*ASTNode{p.(*ASTNode)}),
+	}
+	return &node, nil
+}
+
 // Return an AST node of type PredicateType.
-Predicate <- atom:Atom WS* '(' WS* tl:TermList WS* ')' {
+Predicate <- atom:Atom Skip '(' Skip tl:TermList Skip ')' {
 	node := ASTNode{
 		Type:     PredicateType,
 		Value:    string(c.text),
@@ -92,7 +116,7 @@ Predicate <- atom:Atom WS* '(' WS* tl:TermList WS* ')' {
 }
 
 // Return an AST node of type TermList.
-TermList <- first:Term WS* "," WS* rest:TermList {
+TermList <- first:Term Skip "," Skip rest:TermList {
 	// Prepend a Term onto an existing TermList.
 	termNode := first.(*ASTNode)
 	termListNode := rest.(*ASTNode)
@@ -128,7 +152,7 @@ Term <- child:(Numeral / Structure / Atom / Variable) {
 }
 
 // Return an AST node of type StructureType.
-Structure <- atom:Atom WS* '(' WS* tl:TermList WS* ')' {
+Structure <- atom:Atom Skip '(' Skip tl:TermList Skip ')' {
 	node := ASTNode{
 		Type:     StructureType,
 		Value:    string(c.text),
@@ -185,6 +209,13 @@ Uppercase_letter <- [\p{Lu}_]
 Digit <- [\p{Nd}]
 
 WS <- [\p{Zs}\n\r\t]
+
+One_line_comment <- '%' [^\n\r]* '\r'? '\n'
+
+Multi_line_comment <- "/*" (Multi_line_comment / '*' !'/' / [^*])* "*/"
+
+// Skip represents material to ignore, specifically whitespace and comments.
+Skip <- (WS / One_line_comment / Multi_line_comment)*
 
 // Return an AST node of type NumeralType.
 Numeral <- Digit+ {
