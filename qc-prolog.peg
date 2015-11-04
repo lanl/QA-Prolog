@@ -22,6 +22,10 @@ const (
 	PredicateType                        // Predicate (e.g., "likes(john, mary)")
 	StructureType                        // Structure (e.g., "likes(john, mary)")
 	PredicateListType                    // List of predicates (e.g., "likes(john, X), likes(X, mary)")
+	ClauseType                           // Clause (e.g., "likes(john, X) :- likes(mary, X).")
+	ClauseListType                       // List of clauses (e.g., "likes(john, X) :- likes(mary, X). likes(mary, cheese).")
+	QueryType                            // Query (e.g., "?- likes(john, X).")
+	ProgramType                          // A complete Prolog program
 )
 
 // An ASTNode defines a single node in an abstract syntax tree.
@@ -55,6 +59,30 @@ func (a *ASTNode) String() string {
 	return result
 }
 
+// ConstructList constructs a list-type AST node from a parent type, a head
+// child, and tail children.  (Children may be nil.)  The idea is to
+// produce a single list of children (e.g., [a, b, c]) rather than a degenerate
+// tree (e.g., [a, [b, [c]]]), which is what straightforward construction would
+// naturally produce.
+func (c *current) ConstructList(t ASTNodeType, n, ns interface{}) *ASTNode {
+	head, hasHead := n.(*ASTNode)
+	tail, hasTail := ns.(*ASTNode)
+	node := ASTNode{
+		Type:  t,
+		Value: string(c.text),
+		Pos:   c.pos,
+	}
+	if !hasHead {
+		return &node
+	}
+	node.Children = []*ASTNode{head}
+	if !hasTail {
+		return &node
+	}
+	node.Children = append(node.Children, tail.Children...)
+	return &node
+}
+
 // This is a temporary main() for testing the parser.
 func main() {
     if len(os.Args) != 2 {
@@ -69,117 +97,76 @@ func main() {
 
 }
 
-Temporary_test <- whatever:PredicateList EOF {
+Temporary_test <- whatever:Program EOF {
 	return fmt.Sprintf("%s", whatever), nil
+}
+
+// For now, we define a Prolog program as a list of clauses.  Later, we'll
+// include queries as part of a program.
+Program <- Skip cl:ClauseList Skip {
+	return c.ConstructList(ProgramType, cl, nil), nil
+}
+
+// Return an AST node of type QueryType.
+Query <- "?-" Skip p:PredicateList {
+	return c.ConstructList(QueryType, p, nil), nil
+}
+
+// Return an AST node of type ClauseListType.
+ClauseList <- cl:Clause Skip cls:ClauseList {
+	return c.ConstructList(ClauseListType, cl, cls), nil
+} / cl:Clause {
+	return c.ConstructList(ClauseListType, cl, nil), nil
+}
+
+// Return an AST node of type ClauseType.
+Clause <- p:Predicate Skip ":-" Skip ps:PredicateList Skip '.' {
+	// Rule
+	return c.ConstructList(ClauseType, p, ps), nil
+} / p:Predicate Skip '.' {
+	// Fact
+	return c.ConstructList(ClauseType, p, nil), nil
 }
 
 // Return an AST node of type PredicateListType.
 PredicateList <- p:Predicate Skip ',' Skip ps:PredicateList {
-	// Prepend a Predicate onto an existing PredicateList.
-	predNode := p.(*ASTNode)
-	predListNode := ps.(*ASTNode)
-	node := ASTNode{
-		Type:     PredicateListType,
-		Value:    string(c.text),
-		Pos:      c.pos,
-		Children: append([]*ASTNode{predNode}, predListNode.Children...),
-	}
-	return &node, nil
+	return c.ConstructList(PredicateListType, p, ps), nil
 } / p:Predicate {
-	// Return a PredicateList containing a single Predicate.
-	node := ASTNode{
-		Type:     PredicateListType,
-		Value:    string(c.text),
-		Pos:      c.pos,
-		Children: append([]*ASTNode{p.(*ASTNode)}),
-	}
-	return &node, nil
+	return c.ConstructList(PredicateListType, p, nil), nil
 }
 
 // Return an AST node of type PredicateType.
-Predicate <- atom:Atom Skip '(' Skip tl:TermList Skip ')' {
-	node := ASTNode{
-		Type:     PredicateType,
-		Value:    string(c.text),
-		Pos:      c.pos,
-		Children: []*ASTNode{atom.(*ASTNode), tl.(*ASTNode)},
-	}
-	return &node, nil
-} / atom:Atom {
-	node := ASTNode{
-		Type:     PredicateType,
-		Value:    string(c.text),
-		Pos:      c.pos,
-		Children: []*ASTNode{atom.(*ASTNode)},
-	}
-	return &node, nil
+Predicate <- a:Atom Skip '(' Skip ts:TermList Skip ')' {
+	return c.ConstructList(PredicateType, a, ts), nil
+} / a:Atom {
+	return c.ConstructList(PredicateType, a, nil), nil
 }
 
-// Return an AST node of type TermList.
-TermList <- first:Term Skip "," Skip rest:TermList {
-	// Prepend a Term onto an existing TermList.
-	termNode := first.(*ASTNode)
-	termListNode := rest.(*ASTNode)
-	node := ASTNode{
-		Type:     TermListType,
-		Value:    string(c.text),
-		Pos:      c.pos,
-		Children: append([]*ASTNode{termNode}, termListNode.Children...),
-	}
-	return &node, nil
-} / only:Term {
-	// Return a TermList containing a single Term.
-	termNode := only.(*ASTNode)
-	node := ASTNode{
-		Type:     TermListType,
-		Value:    string(c.text),
-		Pos:      c.pos,
-		Children: []*ASTNode{termNode},
-	}
-	return &node, nil
+// Return an AST node of type TermListType.
+TermList <- t:Term Skip "," Skip ts:TermList {
+	return c.ConstructList(TermListType, t, ts), nil
+} / t:Term {
+	return c.ConstructList(TermListType, t, nil), nil
 }
 
 // Return an AST node of type TermType.
 Term <- child:(Numeral / Structure / Atom / Variable) {
-	childNode := child.(*ASTNode)
-	node := ASTNode{
-		Type:     TermType,
-		Value:    string(c.text),
-		Pos:      c.pos,
-		Children: []*ASTNode{childNode},
-	}
-	return &node, nil
+	return c.ConstructList(TermType, child, nil), nil
 }
 
 // Return an AST node of type StructureType.
-Structure <- atom:Atom Skip '(' Skip tl:TermList Skip ')' {
-	node := ASTNode{
-		Type:     StructureType,
-		Value:    string(c.text),
-		Pos:      c.pos,
-		Children: []*ASTNode{atom.(*ASTNode), tl.(*ASTNode)},
-	}
-	return &node, nil
+Structure <- a:Atom Skip '(' Skip ts:TermList Skip ')' {
+	return c.ConstructList(StructureType, a, ts), nil
 }
 
 // Return an AST node of type VariableType.
 Variable <- Uppercase_letter Symbol_trailer {
-	node := ASTNode{
-		Type:  VariableType,
-		Value: string(c.text),
-		Pos:   c.pos,
-	}
-	return &node, nil
+	return c.ConstructList(VariableType, nil, nil), nil
 }
 
 // Return an AST node of type AtomType.
 Atom <- Small_atom {
-	node := ASTNode{
-		Type:  AtomType,
-		Value: string(c.text),
-		Pos:   c.pos,
-	}
-	return &node, nil
+	return c.ConstructList(AtomType, nil, nil), nil
 } / Single_quoted_string {
 	s := string(c.text)
 	node := ASTNode{
@@ -208,14 +195,14 @@ Uppercase_letter <- [\p{Lu}_]
 
 Digit <- [\p{Nd}]
 
-WS <- [\p{Zs}\n\r\t]
+Whitespace <- [\p{Zs}\n\r\t]
 
 One_line_comment <- '%' [^\n\r]* '\r'? '\n'
 
 Multi_line_comment <- "/*" (Multi_line_comment / '*' !'/' / [^*])* "*/"
 
 // Skip represents material to ignore, specifically whitespace and comments.
-Skip <- (WS / One_line_comment / Multi_line_comment)*
+Skip <- (Whitespace / One_line_comment / Multi_line_comment)*
 
 // Return an AST node of type NumeralType.
 Numeral <- Digit+ {
