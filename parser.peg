@@ -83,22 +83,6 @@ func (c *current) ConstructList(t ASTNodeType, n, ns interface{}) *ASTNode {
 	return &node
 }
 
-// This is a temporary main() for testing the parser.
-func main() {
-    if len(os.Args) != 2 {
-        log.Fatalf("Usage: %s <text>", os.Args[0])
-    }
-    got, err := ParseReader("", strings.NewReader(os.Args[1]))
-    if err != nil {
-        log.Fatal(err)
-    }
-    fmt.Println(got)
-}
-
-}
-
-Temporary_test <- whatever:Program EOF {
-	return fmt.Sprintf("%s", whatever), nil
 }
 
 // For now, we define a Prolog program as a list of clauses.  Later, we'll
