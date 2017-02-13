@@ -1,4 +1,4 @@
-// This program implements a compiler for Quantum-Computing Prolog.  It accepts
+// This program implements a compiler for Quantum-Annealing Prolog.  It accepts
 // a small subset of Prolog and generates weights for a Hamiltonian expression,
 // which can be fed to a quantum annealer such as the D-Wave supercomputer.
 package main
@@ -22,7 +22,7 @@ func main() {
 	// Parse the input file into an AST.
 	progName := BaseName(os.Args[0])
 	if len(os.Args) != 2 {
-		fmt.Fprintf(os.Stderr, "Usage: %s <input.pl>", progName)
+		fmt.Fprintf(os.Stderr, "Usage: %s <input.pl>\n", progName)
 		os.Exit(1)
 	}
 	notify = log.New(os.Stderr, progName+": ", 0)
