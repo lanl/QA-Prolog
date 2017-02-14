@@ -139,7 +139,8 @@ Predicate <- r:Relation {
 }
 
 // Return an AST node of type RelationType.
-Relation <- e1:AdditiveExpr Skip o:RelationOperator Skip e2:AdditiveExpr {
+Relation <- (e1:AdditiveExpr Skip o:RelationOperator Skip e2:AdditiveExpr) /
+            (e1:Term Skip o:EqualityOperator Skip e2:Term) {
         kids := []*ASTNode{
                 e1.(*ASTNode),
                 o.(*ASTNode),
@@ -154,8 +155,14 @@ Relation <- e1:AdditiveExpr Skip o:RelationOperator Skip e2:AdditiveExpr {
         return &node, nil
 }
 
-// A RelationOperator relates two expressions.
-RelationOperator <- ("<=" / ">=" / "<" / ">" / "=" / "/=" / "is") {
+// A RelationOperator relates two numerical expressions.
+RelationOperator <- ("<=" / ">=" / "<" / ">" / "=" / "\\=" / "is") {
+        return c.ConstructList(RelationOpType, nil, nil), nil
+}
+
+// An EqualityOperator relates two arbitrary expressions by equality or
+// inequality.
+EqualityOperator <- ("=" / "\\=" ) {
         return c.ConstructList(RelationOpType, nil, nil), nil
 }
 
@@ -230,8 +237,10 @@ UnaryOperator <- '-' {
 // A PrimaryExpr is the lowest-level expression, an atomic unit.
 PrimaryExpr <- '(' Skip p:PrimaryExpr Skip ')' {
         return c.ConstructList(PrimaryExprType, p, nil), nil
-} / t:Term {
-        return c.ConstructList(PrimaryExprType, t, nil), nil
+} / n:Numeral {
+        return c.ConstructList(PrimaryExprType, n, nil), nil
+} / v:Variable {
+        return c.ConstructList(PrimaryExprType, v, nil), nil
 }
 
 // Return an AST node of type TermListType.
