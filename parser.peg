@@ -2,7 +2,7 @@
 // This is the parser for Quantum-Computing Prolog.  It was written using the
 // Pigeon parser generator's DSL (https://github.com/PuerkitoBio/pigeon) and is
 // inspired by the Prolog grammar found at
-// https://github.com/simonkrenger/ch.bfh.bti7064.w2013.PrologParser/blob/master/doc/prolog-bnf-grammar.txt
+// https://raw.githubusercontent.com/simonkrenger/ch.bfh.bti7064.w2013.PrologParser/master/doc/prolog-bnf-grammar.txt
 // but with various bugs corrected and the grammar converted to a PEG.
 
 package main
@@ -19,6 +19,8 @@ const (
 	VariableType                         // Variable (e.g., "Name")
 	TermType                             // Term (a numeral, atom, or variable)
 	TermListType                         // List of terms
+	RelationOpType                       // Relation operator (e.g., "<=")
+	RelationType                         // Relation (e.g., "happy(X) = Y" or "N < 10")
 	PredicateType                        // Predicate (e.g., "likes(john, mary)")
 	StructureType                        // Structure (e.g., "likes(john, mary)")
 	PredicateListType                    // List of predicates (e.g., "likes(john, X), likes(X, mary)")
@@ -120,10 +122,33 @@ PredicateList <- p:Predicate Skip ',' Skip ps:PredicateList {
 }
 
 // Return an AST node of type PredicateType.
-Predicate <- a:Atom Skip '(' Skip ts:TermList Skip ')' {
+Predicate <- r:Relation {
+	return c.ConstructList(PredicateType, r, nil), nil
+} / a:Atom Skip '(' Skip ts:TermList Skip ')' {
 	return c.ConstructList(PredicateType, a, ts), nil
 } / a:Atom {
 	return c.ConstructList(PredicateType, a, nil), nil
+}
+
+// Return an AST node of type RelationType.
+Relation <- t1:Term Skip r:RelationOperator Skip t2:Term {
+	kids := []*ASTNode{
+		t1.(*ASTNode),
+		r.(*ASTNode),
+		t2.(*ASTNode),
+	}
+	node := ASTNode{
+		Type:     RelationType,
+		Value:    string(c.text),
+		Pos:      c.pos,
+		Children: kids,
+	}
+	return node, nil
+}
+
+// A RelationOperator relates two terms.
+RelationOperator <- ("<=" / ">=" / "<" / ">" / "=" / "/=" / "is") {
+	return c.ConstructList(RelationOpType, nil, nil), nil
 }
 
 // Return an AST node of type TermListType.
