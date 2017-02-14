@@ -13,52 +13,53 @@ type ASTNodeType int
 
 // Declare all of the AST node types we intend to use.
 const (
-	UnknownType       ASTNodeType = iota // Should never be used
-	NumeralType                          // Non-negative integer (e.g., "123")
-	AtomType                             // Atom, with quotes stripped (e.g., "scott")
-	VariableType                         // Variable (e.g., "Name")
-	TermType                             // Term (a numeral, atom, or variable)
-	TermListType                         // List of terms
-	RelationOpType                       // Relation operator (e.g., "<=")
-	RelationType                         // Relation (e.g., "happy(X) = Y" or "N < 10")
-	PredicateType                        // Predicate (e.g., "likes(john, mary)")
-	StructureType                        // Structure (e.g., "likes(john, mary)")
-	PredicateListType                    // List of predicates (e.g., "likes(john, X), likes(X, mary)")
-	ClauseType                           // Clause (e.g., "likes(john, X) :- likes(mary, X).")
-	ClauseListType                       // List of clauses (e.g., "likes(john, X) :- likes(mary, X). likes(mary, cheese).")
-	QueryType                            // Query (e.g., "?- likes(john, X).")
-	ProgramType                          // A complete Prolog program
+        UnknownType       ASTNodeType = iota // Should never be used
+        NumeralType                          // Non-negative integer (e.g., "123")
+        AtomType                             // Atom, with quotes stripped (e.g., "scott")
+        VariableType                         // Variable (e.g., "Name")
+        TermType                             // Term (a numeral, atom, or variable)
+        TermListType                         // List of terms
+        PrimaryExprType                      // Primary expression (e.g., "(2+3)")
+        RelationOpType                       // Relation operator (e.g., "<=")
+        RelationType                         // Relation (e.g., "happy(X) = Y" or "N < 10")
+        PredicateType                        // Predicate (e.g., "likes(john, mary)")
+        StructureType                        // Structure (e.g., "likes(john, mary)")
+        PredicateListType                    // List of predicates (e.g., "likes(john, X), likes(X, mary)")
+        ClauseType                           // Clause (e.g., "likes(john, X) :- likes(mary, X).")
+        ClauseListType                       // List of clauses (e.g., "likes(john, X) :- likes(mary, X). likes(mary, cheese).")
+        QueryType                            // Query (e.g., "?- likes(john, X).")
+        ProgramType                          // A complete Prolog program
 )
 
 // An ASTNode defines a single node in an abstract syntax tree.
 type ASTNode struct {
-	Type     ASTNodeType // What this node represents
-	Value    interface{} // Node's value (int, string, etc.)
-	Pos      position    // Node's position in the input file
-	Children []*ASTNode  // Child AST node(s), if any
+        Type     ASTNodeType // What this node represents
+        Value    interface{} // Node's value (int, string, etc.)
+        Pos      position    // Node's position in the input file
+        Children []*ASTNode  // Child AST node(s), if any
 }
 
 // String outputs an AST node and all its children, mostly for debugging.
 func (a *ASTNode) String() string {
-	result := ""
-	var showAll func(*ASTNode, int)
-	showAll = func(n *ASTNode, depth int) {
-		// Display this node.
-		indent := strings.Repeat("  ", depth)
-		result += fmt.Sprintf("%sType:  %s\n", indent, n.Type)
-		result += fmt.Sprintf("%sValue: %#v\n", indent, n.Value)
-		result += fmt.Sprintf("%sPos:   %d:%d\n", indent, n.Pos.line, n.Pos.col)
+        result := ""
+        var showAll func(*ASTNode, int)
+        showAll = func(n *ASTNode, depth int) {
+                // Display this node.
+                indent := strings.Repeat("  ", depth)
+                result += fmt.Sprintf("%sType:  %s\n", indent, n.Type)
+                result += fmt.Sprintf("%sValue: %#v\n", indent, n.Value)
+                result += fmt.Sprintf("%sPos:   %d:%d\n", indent, n.Pos.line, n.Pos.col)
 
-		// Recursively display all children.
-		for i, child := range n.Children {
-			if i > 0 {
-				result += "\n"
-			}
-			showAll(child, depth+1)
-		}
-	}
-	showAll(a, 0)
-	return result
+                // Recursively display all children.
+                for i, child := range n.Children {
+                        if i > 0 {
+                                result += "\n"
+                        }
+                        showAll(child, depth+1)
+                }
+        }
+        showAll(a, 0)
+        return result
 }
 
 // ConstructList constructs a list-type AST node from a parent type, a head
@@ -67,22 +68,22 @@ func (a *ASTNode) String() string {
 // tree (e.g., [a, [b, [c]]]), which is what straightforward construction would
 // naturally produce.
 func (c *current) ConstructList(t ASTNodeType, n, ns interface{}) *ASTNode {
-	head, hasHead := n.(*ASTNode)
-	tail, hasTail := ns.(*ASTNode)
-	node := ASTNode{
-		Type:  t,
-		Value: string(c.text),
-		Pos:   c.pos,
-	}
-	if !hasHead {
-		return &node
-	}
-	node.Children = []*ASTNode{head}
-	if !hasTail {
-		return &node
-	}
-	node.Children = append(node.Children, tail.Children...)
-	return &node
+        head, hasHead := n.(*ASTNode)
+        tail, hasTail := ns.(*ASTNode)
+        node := ASTNode{
+                Type:  t,
+                Value: string(c.text),
+                Pos:   c.pos,
+        }
+        if !hasHead {
+                return &node
+        }
+        node.Children = []*ASTNode{head}
+        if !hasTail {
+                return &node
+        }
+        node.Children = append(node.Children, tail.Children...)
+        return &node
 }
 
 }
@@ -90,100 +91,107 @@ func (c *current) ConstructList(t ASTNodeType, n, ns interface{}) *ASTNode {
 // For now, we define a Prolog program as a list of clauses.  Later, we'll
 // include queries as part of a program.
 Program <- Skip cl:ClauseList Skip {
-	return c.ConstructList(ProgramType, cl, nil), nil
+        return c.ConstructList(ProgramType, cl, nil), nil
 }
 
 // Return an AST node of type QueryType.
 Query <- "?-" Skip p:PredicateList {
-	return c.ConstructList(QueryType, p, nil), nil
+        return c.ConstructList(QueryType, p, nil), nil
 }
 
 // Return an AST node of type ClauseListType.
 ClauseList <- cl:Clause Skip cls:ClauseList {
-	return c.ConstructList(ClauseListType, cl, cls), nil
+        return c.ConstructList(ClauseListType, cl, cls), nil
 } / cl:Clause {
-	return c.ConstructList(ClauseListType, cl, nil), nil
+        return c.ConstructList(ClauseListType, cl, nil), nil
 }
 
 // Return an AST node of type ClauseType.
 Clause <- p:Predicate Skip ":-" Skip ps:PredicateList Skip '.' {
-	// Rule
-	return c.ConstructList(ClauseType, p, ps), nil
+        // Rule
+        return c.ConstructList(ClauseType, p, ps), nil
 } / p:Predicate Skip '.' {
-	// Fact
-	return c.ConstructList(ClauseType, p, nil), nil
+        // Fact
+        return c.ConstructList(ClauseType, p, nil), nil
 }
 
 // Return an AST node of type PredicateListType.
 PredicateList <- p:Predicate Skip ',' Skip ps:PredicateList {
-	return c.ConstructList(PredicateListType, p, ps), nil
+        return c.ConstructList(PredicateListType, p, ps), nil
 } / p:Predicate {
-	return c.ConstructList(PredicateListType, p, nil), nil
+        return c.ConstructList(PredicateListType, p, nil), nil
 }
 
 // Return an AST node of type PredicateType.
 Predicate <- r:Relation {
-	return c.ConstructList(PredicateType, r, nil), nil
+        return c.ConstructList(PredicateType, r, nil), nil
 } / a:Atom Skip '(' Skip ts:TermList Skip ')' {
-	return c.ConstructList(PredicateType, a, ts), nil
+        return c.ConstructList(PredicateType, a, ts), nil
 } / a:Atom {
-	return c.ConstructList(PredicateType, a, nil), nil
+        return c.ConstructList(PredicateType, a, nil), nil
 }
 
 // Return an AST node of type RelationType.
-Relation <- t1:Term Skip r:RelationOperator Skip t2:Term {
-	kids := []*ASTNode{
-		t1.(*ASTNode),
-		r.(*ASTNode),
-		t2.(*ASTNode),
-	}
-	node := ASTNode{
-		Type:     RelationType,
-		Value:    string(c.text),
-		Pos:      c.pos,
-		Children: kids,
-	}
-	return node, nil
+Relation <- e1:PrimaryExpr Skip r:RelationOperator Skip e2:PrimaryExpr {
+        kids := []*ASTNode{
+                e1.(*ASTNode),
+                r.(*ASTNode),
+                e2.(*ASTNode),
+        }
+        node := ASTNode{
+                Type:     RelationType,
+                Value:    string(c.text),
+                Pos:      c.pos,
+                Children: kids,
+        }
+        return node, nil
 }
 
-// A RelationOperator relates two terms.
+// A RelationOperator relates two expressions.
 RelationOperator <- ("<=" / ">=" / "<" / ">" / "=" / "/=" / "is") {
-	return c.ConstructList(RelationOpType, nil, nil), nil
+        return c.ConstructList(RelationOpType, nil, nil), nil
+}
+
+// A PrimaryExpr is a top-level expression.
+PrimaryExpr <- '(' Skip p:PrimaryExpr Skip ')' {
+        return c.ConstructList(PrimaryExprType, p, nil), nil
+} / t:Term {
+        return c.ConstructList(PrimaryExprType, t, nil), nil
 }
 
 // Return an AST node of type TermListType.
 TermList <- t:Term Skip "," Skip ts:TermList {
-	return c.ConstructList(TermListType, t, ts), nil
+        return c.ConstructList(TermListType, t, ts), nil
 } / t:Term {
-	return c.ConstructList(TermListType, t, nil), nil
+        return c.ConstructList(TermListType, t, nil), nil
 }
 
 // Return an AST node of type TermType.
 Term <- child:(Numeral / Structure / Atom / Variable) {
-	return c.ConstructList(TermType, child, nil), nil
+        return c.ConstructList(TermType, child, nil), nil
 }
 
 // Return an AST node of type StructureType.
 Structure <- a:Atom Skip '(' Skip ts:TermList Skip ')' {
-	return c.ConstructList(StructureType, a, ts), nil
+        return c.ConstructList(StructureType, a, ts), nil
 }
 
 // Return an AST node of type VariableType.
 Variable <- Uppercase_letter Symbol_trailer {
-	return c.ConstructList(VariableType, nil, nil), nil
+        return c.ConstructList(VariableType, nil, nil), nil
 }
 
 // Return an AST node of type AtomType.
 Atom <- Small_atom {
-	return c.ConstructList(AtomType, nil, nil), nil
+        return c.ConstructList(AtomType, nil, nil), nil
 } / Single_quoted_string {
-	s := string(c.text)
-	node := ASTNode{
-		Type:  AtomType,
-		Value: s[1 : len(s)-1],
-		Pos:   c.pos,
-	}
-	return &node, nil
+        s := string(c.text)
+        node := ASTNode{
+                Type:  AtomType,
+                Value: s[1 : len(s)-1],
+                Pos:   c.pos,
+        }
+        return &node, nil
 }
 
 Single_quoted_string <- "'" Single_quoted_string_char* "'"
@@ -191,7 +199,7 @@ Single_quoted_string <- "'" Single_quoted_string_char* "'"
 Single_quoted_string_char <- Character / '\\' .
 
 Small_atom <- Lowercase_letter Symbol_trailer {
-	return string(c.text), nil
+        return string(c.text), nil
 }
 
 Symbol_trailer <- (Lowercase_letter / Uppercase_letter / Digit)*
@@ -215,16 +223,16 @@ Skip <- (Whitespace / One_line_comment / Multi_line_comment)*
 
 // Return an AST node of type NumeralType.
 Numeral <- Digit+ {
-	num, err := strconv.Atoi(string(c.text))
-	if err != nil {
-		return nil, err
-	}
-	node := ASTNode{
-		Type:  NumeralType,
-		Value: num,
-		Pos:   c.pos,
-	}
-	return &node, nil
+        num, err := strconv.Atoi(string(c.text))
+        if err != nil {
+                return nil, err
+        }
+        node := ASTNode{
+                Type:  NumeralType,
+                Value: num,
+                Pos:   c.pos,
+        }
+        return &node, nil
 }
 
 Not_single_quote <- [^']
