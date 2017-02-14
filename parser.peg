@@ -21,6 +21,8 @@ const (
         TermType                                  // Term (a numeral, atom, or variable)
         TermListType                              // List of terms
         PrimaryExprType                           // Primary expression (e.g., "(2+3)")
+        UnaryExprType                             // Unary expression (e.g., "-X")
+        UnaryOpType                               // Unary operator (e.g., "-")
         MultiplicativeExprType                    // Multiplicative expression (e.g., "7 * 5")
         MultiplicativeOpType                      // Multiplicative operator (e.g., "*")
         AdditiveExprType                          // Additive expression (e.g., "7 - 5")
@@ -175,13 +177,13 @@ AdditiveExpr <- e1:MultiplicativeExpr Skip o:AdditiveOperator Skip e2:Multiplica
         return c.ConstructList(AdditiveExprType, e, nil), nil
 }
 
-// An AdditiveOperator adds two values.
+// An AdditiveOperator applies to two values.
 AdditiveOperator <- ('+' / '-') {
         return c.ConstructList(AdditiveOpType, nil, nil), nil
 }
 
-// An MultiplicativeExpr adds two values.
-MultiplicativeExpr <- e1:PrimaryExpr Skip o:MultiplicativeOperator Skip e2:PrimaryExpr {
+// A MultiplicativeExpr multiplies two values.
+MultiplicativeExpr <- e1:UnaryExpr Skip o:MultiplicativeOperator Skip e2:UnaryExpr {
         kids := []*ASTNode{
                 e1.(*ASTNode),
                 o.(*ASTNode),
@@ -194,13 +196,35 @@ MultiplicativeExpr <- e1:PrimaryExpr Skip o:MultiplicativeOperator Skip e2:Prima
                 Children: kids,
         }
         return &node, nil
-} / e:PrimaryExpr {
+} / e:UnaryExpr {
         return c.ConstructList(MultiplicativeExprType, e, nil), nil
 }
 
-// An MultiplicativeOperator adds two values.
+// A MultiplicativeOperator applies to two values.
 MultiplicativeOperator <- ('*' / '/') {
         return c.ConstructList(MultiplicativeOpType, nil, nil), nil
+}
+
+// A UnaryExpr transforms a single value.
+UnaryExpr <- o:UnaryOperator Skip e:PrimaryExpr {
+        kids := []*ASTNode{
+                o.(*ASTNode),
+                e.(*ASTNode),
+        }
+        node := ASTNode{
+                Type:     UnaryExprType,
+                Value:    string(c.text),
+                Pos:      c.pos,
+                Children: kids,
+        }
+        return &node, nil
+} / e:PrimaryExpr {
+        return c.ConstructList(UnaryExprType, e, nil), nil
+}
+
+// A UnaryOperator applies to a single value.
+UnaryOperator <- '-' {
+        return c.ConstructList(UnaryOpType, nil, nil), nil
 }
 
 // A PrimaryExpr is the lowest-level expression, an atomic unit.
