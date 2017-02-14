@@ -30,10 +30,10 @@ func (a *ASTNode) uniqueAtomNames(names map[string]struct{}) {
 	}
 
 	// Recursively process the current node's children.  If the current
-	// node is a predicate, skip its first child (the name of the predicate
+	// node is a clause, skip its first child (the name of the clause
 	// itself).
 	kids := a.Children
-	if a.Type == PredicateType {
+	if a.Type == ClauseType {
 		kids = kids[1:]
 	}
 	for _, aa := range kids {

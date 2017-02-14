@@ -59,6 +59,8 @@ func main() {
 		notify.Fatal(err)
 	}
 
-	// For now, we simply output the AST.
-	fmt.Println(ast)
+	// Temporary
+	a := ast.(*ASTNode)
+	fmt.Println(a)
+	fmt.Printf("ATOMS: %v\n", a.AtomNames())
 }
