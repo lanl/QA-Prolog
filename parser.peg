@@ -1,9 +1,10 @@
 {
-// This is the parser for Quantum-Computing Prolog.  It was written using the
+// This is the parser for Quantum-Annealing Prolog.  It was written using the
 // Pigeon parser generator's DSL (https://github.com/PuerkitoBio/pigeon) and is
 // inspired by the Prolog grammar found at
 // https://raw.githubusercontent.com/simonkrenger/ch.bfh.bti7064.w2013.PrologParser/master/doc/prolog-bnf-grammar.txt
-// but with various bugs corrected and the grammar converted to a PEG.
+// but with various bugs corrected, support for relational and arithmetic
+// expressions added, and the whole grammar converted to a PEG.
 
 package main
 
@@ -13,24 +14,26 @@ type ASTNodeType int
 
 // Declare all of the AST node types we intend to use.
 const (
-        UnknownType       ASTNodeType = iota // Should never be used
-        NumeralType                          // Non-negative integer (e.g., "123")
-        AtomType                             // Atom, with quotes stripped (e.g., "scott")
-        VariableType                         // Variable (e.g., "Name")
-        TermType                             // Term (a numeral, atom, or variable)
-        TermListType                         // List of terms
-        PrimaryExprType                      // Primary expression (e.g., "(2+3)")
-        AdditiveExprType                     // Additive expression (e.g., "7 - 5")
-        AdditiveOpType                       // Additive operator (e.g., "+")
-        RelationOpType                       // Relation operator (e.g., "<=")
-        RelationType                         // Relation (e.g., "happy(X) = Y" or "N < 10")
-        PredicateType                        // Predicate (e.g., "likes(john, mary)")
-        StructureType                        // Structure (e.g., "likes(john, mary)")
-        PredicateListType                    // List of predicates (e.g., "likes(john, X), likes(X, mary)")
-        ClauseType                           // Clause (e.g., "likes(john, X) :- likes(mary, X).")
-        ClauseListType                       // List of clauses (e.g., "likes(john, X) :- likes(mary, X). likes(mary, cheese).")
-        QueryType                            // Query (e.g., "?- likes(john, X).")
-        ProgramType                          // A complete Prolog program
+        UnknownType            ASTNodeType = iota // Should never be used
+        NumeralType                               // Non-negative integer (e.g., "123")
+        AtomType                                  // Atom, with quotes stripped (e.g., "scott")
+        VariableType                              // Variable (e.g., "Name")
+        TermType                                  // Term (a numeral, atom, or variable)
+        TermListType                              // List of terms
+        PrimaryExprType                           // Primary expression (e.g., "(2+3)")
+        MultiplicativeExprType                    // Multiplicative expression (e.g., "7 * 5")
+        MultiplicativeOpType                      // Multiplicative operator (e.g., "*")
+        AdditiveExprType                          // Additive expression (e.g., "7 - 5")
+        AdditiveOpType                            // Additive operator (e.g., "+")
+        RelationOpType                            // Relation operator (e.g., "<=")
+        RelationType                              // Relation (e.g., "happy(X) = Y" or "N < 10")
+        PredicateType                             // Predicate (e.g., "likes(john, mary)")
+        StructureType                             // Structure (e.g., "likes(john, mary)")
+        PredicateListType                         // List of predicates (e.g., "likes(john, X), likes(X, mary)")
+        ClauseType                                // Clause (e.g., "likes(john, X) :- likes(mary, X).")
+        ClauseListType                            // List of clauses (e.g., "likes(john, X) :- likes(mary, X). likes(mary, cheese).")
+        QueryType                                 // Query (e.g., "?- likes(john, X).")
+        ProgramType                               // A complete Prolog program
 )
 
 // An ASTNode defines a single node in an abstract syntax tree.
@@ -155,7 +158,7 @@ RelationOperator <- ("<=" / ">=" / "<" / ">" / "=" / "/=" / "is") {
 }
 
 // An AdditiveExpr adds two values.
-AdditiveExpr <- e1:PrimaryExpr Skip o:AdditiveOperator Skip e2:PrimaryExpr {
+AdditiveExpr <- e1:MultiplicativeExpr Skip o:AdditiveOperator Skip e2:MultiplicativeExpr {
         kids := []*ASTNode{
                 e1.(*ASTNode),
                 o.(*ASTNode),
@@ -168,13 +171,36 @@ AdditiveExpr <- e1:PrimaryExpr Skip o:AdditiveOperator Skip e2:PrimaryExpr {
                 Children: kids,
         }
         return &node, nil
-} / e:PrimaryExpr {
+} / e:MultiplicativeExpr {
         return c.ConstructList(AdditiveExprType, e, nil), nil
 }
 
 // An AdditiveOperator adds two values.
 AdditiveOperator <- ('+' / '-') {
         return c.ConstructList(AdditiveOpType, nil, nil), nil
+}
+
+// An MultiplicativeExpr adds two values.
+MultiplicativeExpr <- e1:PrimaryExpr Skip o:MultiplicativeOperator Skip e2:PrimaryExpr {
+        kids := []*ASTNode{
+                e1.(*ASTNode),
+                o.(*ASTNode),
+                e2.(*ASTNode),
+        }
+        node := ASTNode{
+                Type:     MultiplicativeExprType,
+                Value:    string(c.text),
+                Pos:      c.pos,
+                Children: kids,
+        }
+        return &node, nil
+} / e:PrimaryExpr {
+        return c.ConstructList(MultiplicativeExprType, e, nil), nil
+}
+
+// An MultiplicativeOperator adds two values.
+MultiplicativeOperator <- ('*' / '/') {
+        return c.ConstructList(MultiplicativeOpType, nil, nil), nil
 }
 
 // A PrimaryExpr is the lowest-level expression, an atomic unit.
