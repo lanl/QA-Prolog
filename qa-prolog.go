@@ -63,4 +63,5 @@ func main() {
 	a := ast.(*ASTNode)
 	fmt.Println(a)
 	fmt.Printf("ATOMS: %v\n", a.AtomNames())
+	fmt.Printf("MAX NUM: %d\n", a.MaxNumeral())
 }

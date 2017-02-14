@@ -93,6 +93,23 @@ func (c *current) ConstructList(t ASTNodeType, n, ns interface{}) *ASTNode {
         return &node
 }
 
+// PrepareRelation takes two expressions and an operator and returns an ASTNode
+// representing that relation.
+func (c *current) PrepareRelation(e1, o, e2 interface{}) *ASTNode {
+        kids := []*ASTNode{
+                e1.(*ASTNode),
+                o.(*ASTNode),
+                e2.(*ASTNode),
+        }
+        node := ASTNode{
+                Type:     RelationType,
+                Value:    string(c.text),
+                Pos:      c.pos,
+                Children: kids,
+        }
+        return &node
+}
+
 }
 
 // For now, we define a Prolog program as a list of clauses.  Later, we'll
@@ -139,20 +156,10 @@ Predicate <- r:Relation {
 }
 
 // Return an AST node of type RelationType.
-Relation <- (e1:AdditiveExpr Skip o:RelationOperator Skip e2:AdditiveExpr) /
-            (e1:Term Skip o:EqualityOperator Skip e2:Term) {
-        kids := []*ASTNode{
-                e1.(*ASTNode),
-                o.(*ASTNode),
-                e2.(*ASTNode),
-        }
-        node := ASTNode{
-                Type:     RelationType,
-                Value:    string(c.text),
-                Pos:      c.pos,
-                Children: kids,
-        }
-        return &node, nil
+Relation <- (e1:AdditiveExpr Skip o:RelationOperator Skip e2:AdditiveExpr) {
+        return c.PrepareRelation(e1, o, e2), nil
+} / (e1:Term Skip o:EqualityOperator Skip e2:Term) {
+        return c.PrepareRelation(e1, o, e2), nil
 }
 
 // A RelationOperator relates two numerical expressions.

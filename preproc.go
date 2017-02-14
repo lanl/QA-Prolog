@@ -40,3 +40,24 @@ func (a *ASTNode) uniqueAtomNames(names map[string]struct{}) {
 		aa.uniqueAtomNames(names)
 	}
 }
+
+// MaxNumeral returns the maximum-valued numeric literal.
+func (a *ASTNode) MaxNumeral() int {
+	// Process the current node.
+	max := 0
+	if a.Type == NumeralType {
+		m := a.Value.(int)
+		if m > max {
+			max = m
+		}
+	}
+
+	// Recursively process each of the node's children.
+	for _, aa := range a.Children {
+		m := aa.MaxNumeral()
+		if m > max {
+			max = m
+		}
+	}
+	return max
+}
