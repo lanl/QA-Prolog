@@ -20,6 +20,8 @@ const (
         TermType                             // Term (a numeral, atom, or variable)
         TermListType                         // List of terms
         PrimaryExprType                      // Primary expression (e.g., "(2+3)")
+        AdditiveExprType                     // Additive expression (e.g., "7 - 5")
+        AdditiveOpType                       // Additive operator (e.g., "+")
         RelationOpType                       // Relation operator (e.g., "<=")
         RelationType                         // Relation (e.g., "happy(X) = Y" or "N < 10")
         PredicateType                        // Predicate (e.g., "likes(john, mary)")
@@ -132,10 +134,10 @@ Predicate <- r:Relation {
 }
 
 // Return an AST node of type RelationType.
-Relation <- e1:PrimaryExpr Skip r:RelationOperator Skip e2:PrimaryExpr {
+Relation <- e1:AdditiveExpr Skip o:RelationOperator Skip e2:AdditiveExpr {
         kids := []*ASTNode{
                 e1.(*ASTNode),
-                r.(*ASTNode),
+                o.(*ASTNode),
                 e2.(*ASTNode),
         }
         node := ASTNode{
@@ -144,7 +146,7 @@ Relation <- e1:PrimaryExpr Skip r:RelationOperator Skip e2:PrimaryExpr {
                 Pos:      c.pos,
                 Children: kids,
         }
-        return node, nil
+        return &node, nil
 }
 
 // A RelationOperator relates two expressions.
@@ -152,7 +154,30 @@ RelationOperator <- ("<=" / ">=" / "<" / ">" / "=" / "/=" / "is") {
         return c.ConstructList(RelationOpType, nil, nil), nil
 }
 
-// A PrimaryExpr is a top-level expression.
+// An AdditiveExpr adds two values.
+AdditiveExpr <- e1:PrimaryExpr Skip o:AdditiveOperator Skip e2:PrimaryExpr {
+        kids := []*ASTNode{
+                e1.(*ASTNode),
+                o.(*ASTNode),
+                e2.(*ASTNode),
+        }
+        node := ASTNode{
+                Type:     AdditiveExprType,
+                Value:    string(c.text),
+                Pos:      c.pos,
+                Children: kids,
+        }
+        return &node, nil
+} / e:PrimaryExpr {
+        return c.ConstructList(AdditiveExprType, e, nil), nil
+}
+
+// An AdditiveOperator adds two values.
+AdditiveOperator <- ('+' / '-') {
+        return c.ConstructList(AdditiveOpType, nil, nil), nil
+}
+
+// A PrimaryExpr is the lowest-level expression, an atomic unit.
 PrimaryExpr <- '(' Skip p:PrimaryExpr Skip ')' {
         return c.ConstructList(PrimaryExprType, p, nil), nil
 } / t:Term {
