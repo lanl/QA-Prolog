@@ -20,6 +20,8 @@ const (
         VariableType                              // Variable (e.g., "Name")
         TermType                                  // Term (a numeral, atom, or variable)
         TermListType                              // List of terms
+        ListTailType                              // Tail of a list (e.g., the "T" in "[H|T]").
+        ListType                                  // List (e.g., "[a, b, c]" or "[x, y, z|More]")
         PrimaryExprType                           // Primary expression (e.g., "(2+3)")
         UnaryExprType                             // Unary expression (e.g., "-X")
         UnaryOpType                               // Unary operator (e.g., "-")
@@ -258,8 +260,23 @@ TermList <- t:Term Skip "," Skip ts:TermList {
 }
 
 // Return an AST node of type TermType.
-Term <- child:(Numeral / Structure / Atom / Variable) {
+Term <- child:(Numeral / Structure / Atom / Variable / List) {
         return c.ConstructList(TermType, child, nil), nil
+}
+
+// A List can be either of bounded or unbounded extent (e.g., [1, 2, 3] vs. [1,
+// 2, 3|Rest]).
+List <- '[' Skip h:TermList Skip '|' Skip t:ListTail Skip ']' {
+        // Unbounded extent
+        return c.ConstructList(ListType, h, t), nil
+} / '[' Skip h:TermList Skip ']' {
+        // Bounded extent
+        return c.ConstructList(ListType, h, nil), nil
+}
+
+// A ListTail represents the "everything else" part of a list.
+ListTail <- v:Variable {
+        return c.ConstructList(ListTailType, v, nil), nil
 }
 
 // Return an AST node of type StructureType.
