@@ -116,7 +116,7 @@ func (c *current) PrepareRelation(e1, o, e2 interface{}) *ASTNode {
 
 // For now, we define a Prolog program as a list of clauses.  Later, we'll
 // include queries as part of a program.
-Program <- Skip cl:ClauseList Skip {
+Program <- Skip cl:ClauseList Skip EOF {
         return c.ConstructList(ProgramType, cl, nil), nil
 }
 
