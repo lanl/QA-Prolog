@@ -27,6 +27,9 @@ type Parameters struct {
 	IntBits    uint   // Number of bits to use for each program integer
 }
 
+// ParseError reports a parse error at a given position.
+var ParseError func(pos position, format string, args ...interface{})
+
 func main() {
 	// Parse the command line.
 	p := Parameters{}
@@ -43,6 +46,12 @@ func main() {
 	} else {
 		p.InFileName = flag.Arg(0)
 	}
+	ParseError = func(pos position, format string, args ...interface{}) {
+		fmt.Fprintf(os.Stderr, "%s:%d:%d: ", p.InFileName, pos.line, pos.col)
+		fmt.Fprintf(os.Stderr, format, args...)
+		fmt.Fprintln(os.Stderr, "")
+		os.Exit(1)
+	}
 
 	// Parse the input file into an AST.
 	var r io.Reader = os.Stdin
@@ -54,14 +63,15 @@ func main() {
 		defer f.Close()
 		r = f
 	}
-	ast, err := ParseReader(p.InFileName, r)
+	a, err := ParseReader(p.InFileName, r)
 	if err != nil {
 		notify.Fatal(err)
 	}
+	ast := a.(*ASTNode)
+	ast.RejectUnimplemented(&p)
 
 	// Temporary
-	a := ast.(*ASTNode)
-	fmt.Println(a)
-	fmt.Printf("ATOMS: %v\n", a.AtomNames())
-	fmt.Printf("MAX NUM: %d\n", a.MaxNumeral())
+	fmt.Println(ast)
+	fmt.Printf("ATOMS: %v\n", ast.AtomNames())
+	fmt.Printf("MAX NUM: %d\n", ast.MaxNumeral())
 }
