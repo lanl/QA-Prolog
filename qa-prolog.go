@@ -74,4 +74,5 @@ func main() {
 	fmt.Println(ast)
 	fmt.Printf("ATOMS: %v\n", ast.AtomNames())
 	fmt.Printf("MAX NUM: %d\n", ast.MaxNumeral())
+	fmt.Printf("CLAUSES: %#v\n", ast.BinClauses())
 }

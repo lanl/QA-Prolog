@@ -2,7 +2,10 @@
 
 package main
 
-import "sort"
+import (
+	"fmt"
+	"sort"
+)
 
 // RejectUnimplemented rejects the AST (i.e., aborts the program) if it
 // contains elements we do not currently know how to process.
@@ -87,4 +90,34 @@ func (a *ASTNode) MaxNumeral() int {
 		}
 	}
 	return max
+}
+
+// BinClauses groups all of the clauses in the program by name and arity.  The
+// function returns a map with keys are of the form "<name>/<arity>" and values
+// being the corresponding lists of clauses.
+func (a *ASTNode) BinClauses() map[string][]*ASTNode {
+	bins := make(map[string][]*ASTNode, 8)
+	for _, cl := range a.FindByType(ClauseType) {
+		// Perform a lot of error-checking as we search for the clause
+		// name.
+		if len(cl.Children) == 0 {
+			notify.Fatal("Internal error: Clause with no children")
+		}
+		pr := cl.Children[0]
+		if pr.Type != PredicateType {
+			notify.Fatal("Internal error: Clause with no predicate first child")
+		}
+		if len(pr.Children) == 0 {
+			notify.Fatal("Internal error: Predicate with no children")
+		}
+
+		// Extract the symbol name (<name>/<arity>).
+		nm := pr.Children[0].Value.(string)
+		ar := len(pr.Children[1:])
+		sym := fmt.Sprintf("%s/%d", nm, ar)
+
+		// Associate the current clause with the symbol name.
+		bins[sym] = append(bins[sym], cl)
+	}
+	return bins
 }
