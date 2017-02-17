@@ -43,14 +43,12 @@ func numToVerVar(n int) string {
 	return "" // Will never get here.
 }
 
-// writeClauseGroup writes a Verilog module corresponding to a group of clauses
-// that have the same name and arity.
-func (a *ASTNode) writeClauseGroup(w io.Writer, p *Parameters, nm string, cs []*ASTNode) {
-	// Acquire the function prototype from the first clause.
-	pred := cs[0].Children[0]
+// args retrieves a clause's arguments in both Prolog and Verilog format.
+func (c *ASTNode) args() (pArgs, vArgs []string) {
+	pred := c.Children[0]
 	terms := pred.Children[1:]
-	pArgs := make([]string, len(terms)) // Prolog arguments
-	vArgs := make([]string, len(terms)) // Verilog arguments
+	pArgs = make([]string, len(terms)) // Prolog arguments
+	vArgs = make([]string, len(terms)) // Verilog arguments
 	for i, a := range terms {
 		pArgs[i] = a.Value.(string)
 		if unicode.IsUpper(rune(pArgs[i][0])) {
@@ -59,8 +57,27 @@ func (a *ASTNode) writeClauseGroup(w io.Writer, p *Parameters, nm string, cs []*
 			vArgs[i] = numToVerVar(i) // Symbol; create a new variable name
 		}
 	}
+	return
+}
 
+// process converts each predicate in a clause to an assignment to a valid bit.
+func (c *ASTNode) process() []string {
+	// Assign validity based on matches on any specified input symbols.
+	valid := make([]string, 0, len(c.Children))
+	pArgs, vArgs := c.args()
+	for i, a := range pArgs {
+		if unicode.IsLower(rune(a[0])) {
+			valid = append(valid, fmt.Sprintf("%s == `%s", vArgs[i], a))
+		}
+	}
+	return valid
+}
+
+// writeClauseGroup writes a Verilog module corresponding to a group of clauses
+// that have the same name and arity.
+func (a *ASTNode) writeClauseGroup(w io.Writer, p *Parameters, nm string, cs []*ASTNode) {
 	// Write a module header.
+	_, vArgs := cs[0].args()
 	fmt.Fprintf(w, "// Define %s.\n", nm)
 	fmt.Fprintf(w, "module \\%s (", nm)
 	for i, a := range vArgs {
@@ -81,22 +98,25 @@ func (a *ASTNode) writeClauseGroup(w io.Writer, p *Parameters, nm string, cs []*
 	}
 	fmt.Fprintln(w, "  output $valid;")
 
-	// Assign validity conditions based on the input symbols, if any.
-	valid := make([]string, 0)
-	for i, a := range pArgs {
-		if unicode.IsLower(rune(a[0])) {
-			valid = append(valid, fmt.Sprintf("%s == `%s", vArgs[i], a))
+	// Assign validity conditions based on each clause in the clause group.
+	for i, c := range cs {
+		valid := c.process()
+		fmt.Fprintf(w, "  wire [%d:0] $v%d;\n", len(valid)-1, i+1)
+		for j, v := range valid {
+			fmt.Fprintf(w, "  assign $v%d[%d] = %s;\n", i+1, j, v)
 		}
 	}
 
 	// Set the final validity bit to the intersection of all predicate
 	// validity bits.
-	fmt.Fprintf(w, "  wire [%d:0] $v;\n\n", len(valid)-1)
-	for i, v := range valid {
-		fmt.Fprintf(w, "  assign $v[%d] = %s;\n", i, v)
+	fmt.Fprint(w, "  assign $valid = ")
+	for i := range cs {
+		if i > 0 {
+			fmt.Fprint(w, " | ")
+		}
+		fmt.Fprintf(w, "&$v%d", i+1)
 	}
-	fmt.Fprintln(w, "")
-	fmt.Fprintln(w, "  assign $valid = &$v;")
+	fmt.Fprintln(w, ";")
 	fmt.Fprintln(w, "endmodule")
 }
 
