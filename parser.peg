@@ -217,7 +217,7 @@ MultiplicativeExpr <- e1:UnaryExpr Skip o:MultiplicativeOperator Skip e2:UnaryEx
 }
 
 // A MultiplicativeOperator applies to two values.
-MultiplicativeOperator <- ('*' / '/') {
+MultiplicativeOperator <- '*' {
         return c.ConstructList(MultiplicativeOpType, nil, nil), nil
 }
 

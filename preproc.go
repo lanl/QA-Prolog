@@ -40,7 +40,6 @@ func (a *ASTNode) StoreAtomNames(p *Parameters) {
 	// Construct a map from integers to symbols.
 	nmSet := make(map[string]struct{})
 	a.uniqueAtomNames(nmSet, false)
-	notify.Printf("ATOMS = %v", nmSet) // Temporary
 	p.IntToSym = make([]string, 0, len(nmSet))
 	for nm := range nmSet {
 		p.IntToSym = append(p.IntToSym, nm)
@@ -121,12 +120,17 @@ func (a *ASTNode) AdjustIntBits(p *Parameters) {
 	if p.IntBits < b {
 		p.IntBits = b
 	}
+
+	// We can't handle 0-bit integers so round up to 1 if necessary.
+	if p.IntBits == 0 {
+		p.IntBits = 1
+	}
 }
 
 // BinClauses groups all of the clauses in the program by name and arity.  The
 // function returns a map with keys are of the form "<name>/<arity>" and values
 // being the corresponding lists of clauses.
-func (a *ASTNode) BinClauses() map[string][]*ASTNode {
+func (a *ASTNode) BinClauses(p *Parameters) {
 	bins := make(map[string][]*ASTNode, 8)
 	for _, cl := range a.FindByType(ClauseType) {
 		// Perform a lot of error-checking as we search for the clause
@@ -150,5 +154,5 @@ func (a *ASTNode) BinClauses() map[string][]*ASTNode {
 		// Associate the current clause with the symbol name.
 		bins[sym] = append(bins[sym], cl)
 	}
-	return bins
+	p.TopLevel = bins
 }

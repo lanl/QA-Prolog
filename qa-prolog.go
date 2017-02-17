@@ -29,8 +29,9 @@ type Parameters struct {
 	IntBits    uint   // Number of bits to use for each program integer
 
 	// Computed values
-	SymToInt map[string]int // Map from a symbol to an integer
-	IntToSym []string       // Map from an integer to a symbol
+	SymToInt map[string]int        // Map from a symbol to an integer
+	IntToSym []string              // Map from an integer to a symbol
+	TopLevel map[string][]*ASTNode // Top-level clauses, grouped by name and arity
 }
 
 // ParseError reports a parse error at a given position.
@@ -89,6 +90,7 @@ func main() {
 	// Preprocess the AST.
 	ast.StoreAtomNames(&p)
 	ast.AdjustIntBits(&p)
+	ast.BinClauses(&p)
 
 	// Output Verilog code.
 	ast.WriteVerilog(os.Stdout, &p)
