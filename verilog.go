@@ -47,15 +47,11 @@ func numToVerVar(n int) string {
 func (c *ASTNode) args() (pArgs, vArgs []string) {
 	pred := c.Children[0]
 	terms := pred.Children[1:]
-	pArgs = make([]string, len(terms)) // Prolog arguments
-	vArgs = make([]string, len(terms)) // Verilog arguments
+	pArgs = make([]string, len(terms)) // Prolog arguments (terms)
+	vArgs = make([]string, len(terms)) // Verilog arguments (variables)
 	for i, a := range terms {
 		pArgs[i] = a.Value.(string)
-		if unicode.IsUpper(rune(pArgs[i][0])) {
-			vArgs[i] = pArgs[i] // Already a variable
-		} else {
-			vArgs[i] = numToVerVar(i) // Symbol; create a new variable name
-		}
+		vArgs[i] = numToVerVar(i)
 	}
 	return
 }
@@ -66,8 +62,19 @@ func (c *ASTNode) process() []string {
 	valid := make([]string, 0, len(c.Children))
 	pArgs, vArgs := c.args()
 	for i, a := range pArgs {
-		if unicode.IsLower(rune(a[0])) {
+		r0 := rune(a[0])
+		switch {
+		case unicode.IsLower(r0):
+			// Symbol
 			valid = append(valid, fmt.Sprintf("%s == `%s", vArgs[i], a))
+		case unicode.IsDigit(r0):
+			// Numeral
+			valid = append(valid, fmt.Sprintf("%s == %s", vArgs[i], a))
+		case unicode.IsUpper(r0):
+			// Variable
+
+		default:
+			notify.Fatalf("Internal error processing %q", a)
 		}
 	}
 	return valid
