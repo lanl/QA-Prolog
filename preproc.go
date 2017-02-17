@@ -34,22 +34,29 @@ func (a *ASTNode) FindByType(t ASTNodeType) []*ASTNode {
 	return nodes
 }
 
-// AtomNames returns a sorted list of all atoms named in an AST except
-// predicate names.
-func (a *ASTNode) AtomNames() []string {
+// StoreAtomNames stores both a forward and reverse map between all atoms named
+// in an AST (except predicate names) and integers.
+func (a *ASTNode) StoreAtomNames(p *Parameters) {
+	// Construct a map from integers to symbols.
 	nmSet := make(map[string]struct{})
-	a.uniqueAtomNames(nmSet)
-	nmList := make([]string, 0, len(nmSet))
+	a.uniqueAtomNames(nmSet, false)
+	notify.Printf("ATOMS = %v", nmSet) // Temporary
+	p.IntToSym = make([]string, 0, len(nmSet))
 	for nm := range nmSet {
-		nmList = append(nmList, nm)
+		p.IntToSym = append(p.IntToSym, nm)
 	}
-	sort.Strings(nmList)
-	return nmList
+	sort.Strings(p.IntToSym)
+
+	// Construct a map from symbols to integers.
+	p.SymToInt = make(map[string]int, len(p.IntToSym))
+	for i, s := range p.IntToSym {
+		p.SymToInt[s] = i
+	}
 }
 
 // uniqueAtomNames constructs a set of all atoms named in an AST except
 // predicate names.  It performs most of the work for AtomNames.
-func (a *ASTNode) uniqueAtomNames(names map[string]struct{}) {
+func (a *ASTNode) uniqueAtomNames(names map[string]struct{}, skip1 bool) {
 	// Process the current AST node.
 	if a.Type == AtomType {
 		nm, ok := a.Value.(string)
@@ -60,19 +67,20 @@ func (a *ASTNode) uniqueAtomNames(names map[string]struct{}) {
 	}
 
 	// Recursively process the current node's children.  If the current
-	// node is a clause, skip its first child (the name of the clause
-	// itself).
+	// node is a clause, skip its first child's first child (the name of
+	// the clause itself).
 	kids := a.Children
-	if a.Type == ClauseType {
+	if skip1 {
 		kids = kids[1:]
 	}
+	skip1 = a.Type == ClauseType
 	for _, aa := range kids {
-		aa.uniqueAtomNames(names)
+		aa.uniqueAtomNames(names, skip1)
 	}
 }
 
-// MaxNumeral returns the maximum-valued numeric literal.
-func (a *ASTNode) MaxNumeral() int {
+// maxNumeral returns the maximum-valued numeric literal.
+func (a *ASTNode) maxNumeral() int {
 	// Process the current node.
 	max := 0
 	if a.Type == NumeralType {
@@ -84,12 +92,35 @@ func (a *ASTNode) MaxNumeral() int {
 
 	// Recursively process each of the node's children.
 	for _, aa := range a.Children {
-		m := aa.MaxNumeral()
+		m := aa.maxNumeral()
 		if m > max {
 			max = m
 		}
 	}
 	return max
+}
+
+// AdjustIntBits increments the integer width to accomodate both the
+// maximum-valued numeric literal and the number of symbol literals.
+// This function assumes that StoreAtomNames has already been called.
+func (a *ASTNode) AdjustIntBits(p *Parameters) {
+	// Ensure we can store the maximum integer literal.
+	b := uint(0)
+	for n := a.maxNumeral(); n > 0; n >>= 1 {
+		b++
+	}
+	if p.IntBits < b {
+		p.IntBits = b
+	}
+
+	// Ensure we can store the maximum symbol number.
+	b = 0
+	for n := len(p.IntToSym) - 1; n > 0; n >>= 1 {
+		b++
+	}
+	if p.IntBits < b {
+		p.IntBits = b
+	}
 }
 
 // BinClauses groups all of the clauses in the program by name and arity.  The

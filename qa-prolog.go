@@ -20,15 +20,31 @@ func BaseName(filename string) string {
 	return path.Base(strings.TrimSuffix(filename, path.Ext(filename)))
 }
 
-// Parameters encapsulates all program parameters.
+// Parameters encapsulates all command-line parameters as well as various
+// global values computed from the AST.
 type Parameters struct {
+	// Command-line parameters
 	ProgName   string // Name of this program
 	InFileName string // Name of the input file
 	IntBits    uint   // Number of bits to use for each program integer
+
+	// Computed values
+	SymToInt map[string]int // Map from a symbol to an integer
+	IntToSym []string       // Map from an integer to a symbol
 }
 
 // ParseError reports a parse error at a given position.
 var ParseError func(pos position, format string, args ...interface{})
+
+// BitsNeeded reports the number of bits needed to represent a given
+// nonnegative integer.
+func BitsNeeded(n int) int {
+	b := 0
+	for ; n > 0; n >>= 1 {
+		b++
+	}
+	return b
+}
 
 func main() {
 	// Parse the command line.
@@ -70,9 +86,10 @@ func main() {
 	ast := a.(*ASTNode)
 	ast.RejectUnimplemented(&p)
 
-	// Temporary
-	fmt.Println(ast)
-	fmt.Printf("ATOMS: %v\n", ast.AtomNames())
-	fmt.Printf("MAX NUM: %d\n", ast.MaxNumeral())
-	fmt.Printf("CLAUSES: %#v\n", ast.BinClauses())
+	// Preprocess the AST.
+	ast.StoreAtomNames(&p)
+	ast.AdjustIntBits(&p)
+
+	// Output Verilog code.
+	ast.WriteVerilog(os.Stdout, &p)
 }
