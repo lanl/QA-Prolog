@@ -50,15 +50,26 @@ func (c *ASTNode) args() (pArgs, vArgs []string) {
 	pArgs = make([]string, len(terms)) // Prolog arguments (terms)
 	vArgs = make([]string, len(terms)) // Verilog arguments (variables)
 	for i, a := range terms {
-		pArgs[i] = a.Value.(string)
+		pArgs[i] = a.Text
 		vArgs[i] = numToVerVar(i)
 	}
 	return
 }
 
+// toVerilogExpr recursively converts an AST, starting from a clause's body
+// predicate, to an expression.
+func (a *ASTNode) toVerilogExpr() string {
+	switch a.Type {
+	case NumeralType:
+		return a.Text
+	}
+	return ""
+}
+
 // process converts each predicate in a clause to an assignment to a valid bit.
 func (c *ASTNode) process() []string {
-	// Assign validity based on matches on any specified input symbols.
+	// Assign validity based on matches on any specified input symbols or
+	// numbers.
 	valid := make([]string, 0, len(c.Children))
 	pArgs, vArgs := c.args()
 	for i, a := range pArgs {
@@ -77,6 +88,7 @@ func (c *ASTNode) process() []string {
 			notify.Fatalf("Internal error processing %q", a)
 		}
 	}
+	notify.Printf("CLAUSE = %v", c) // Temporary
 	return valid
 }
 

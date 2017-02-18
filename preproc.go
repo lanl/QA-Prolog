@@ -147,7 +147,7 @@ func (a *ASTNode) BinClauses(p *Parameters) {
 		}
 
 		// Extract the symbol name (<name>/<arity>).
-		nm := pr.Children[0].Value.(string)
+		nm := pr.Children[0].Value
 		ar := len(pr.Children[1:])
 		sym := fmt.Sprintf("%s/%d", nm, ar)
 

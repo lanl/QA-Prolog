@@ -43,8 +43,9 @@ const (
 // An ASTNode defines a single node in an abstract syntax tree.
 type ASTNode struct {
         Type     ASTNodeType // What this node represents
-        Value    interface{} // Node's value (int, string, etc.)
+        Text     string      // Node's textural represntation
         Pos      position    // Node's position in the input file
+        Value    interface{} // Node's value (int, string, etc.)
         Children []*ASTNode  // Child AST node(s), if any
 }
 
@@ -57,6 +58,7 @@ func (a *ASTNode) String() string {
                 indent := strings.Repeat("  ", depth)
                 result += fmt.Sprintf("%sType:  %s\n", indent, n.Type)
                 result += fmt.Sprintf("%sValue: %#v\n", indent, n.Value)
+                result += fmt.Sprintf("%sText:  %q\n", indent, n.Text)
                 result += fmt.Sprintf("%sPos:   %d:%d\n", indent, n.Pos.line, n.Pos.col)
 
                 // Recursively display all children.
@@ -80,9 +82,9 @@ func (c *current) ConstructList(t ASTNodeType, n, ns interface{}) *ASTNode {
         head, hasHead := n.(*ASTNode)
         tail, hasTail := ns.(*ASTNode)
         node := ASTNode{
-                Type:  t,
-                Value: string(c.text),
-                Pos:   c.pos,
+                Type: t,
+                Text: string(c.text),
+                Pos:  c.pos,
         }
         if !hasHead {
                 return &node
@@ -105,7 +107,7 @@ func (c *current) PrepareRelation(e1, o, e2 interface{}) *ASTNode {
         }
         node := ASTNode{
                 Type:     RelationType,
-                Value:    string(c.text),
+                Text:     string(c.text),
                 Pos:      c.pos,
                 Children: kids,
         }
@@ -184,7 +186,7 @@ AdditiveExpr <- e1:MultiplicativeExpr Skip o:AdditiveOperator Skip e2:Multiplica
         }
         node := ASTNode{
                 Type:     AdditiveExprType,
-                Value:    string(c.text),
+                Text:     string(c.text),
                 Pos:      c.pos,
                 Children: kids,
         }
@@ -207,7 +209,7 @@ MultiplicativeExpr <- e1:UnaryExpr Skip o:MultiplicativeOperator Skip e2:UnaryEx
         }
         node := ASTNode{
                 Type:     MultiplicativeExprType,
-                Value:    string(c.text),
+                Text:     string(c.text),
                 Pos:      c.pos,
                 Children: kids,
         }
@@ -229,7 +231,7 @@ UnaryExpr <- o:UnaryOperator Skip e:PrimaryExpr {
         }
         node := ASTNode{
                 Type:     UnaryExprType,
-                Value:    string(c.text),
+                Text:     string(c.text),
                 Pos:      c.pos,
                 Children: kids,
         }
@@ -291,13 +293,16 @@ Variable <- Uppercase_letter Symbol_trailer {
 
 // Return an AST node of type AtomType.
 Atom <- Small_atom {
-        return c.ConstructList(AtomType, nil, nil), nil
+        node := c.ConstructList(AtomType, nil, nil)
+	node.Value = node.Text
+	return node, nil
 } / Single_quoted_string {
         s := string(c.text)
         node := ASTNode{
                 Type:  AtomType,
-                Value: s[1 : len(s)-1],
+                Text:  s,
                 Pos:   c.pos,
+                Value: s[1 : len(s)-1],
         }
         return &node, nil
 }
@@ -337,6 +342,7 @@ Numeral <- Digit+ {
         }
         node := ASTNode{
                 Type:  NumeralType,
+                Text:  string(c.text),
                 Value: num,
                 Pos:   c.pos,
         }
