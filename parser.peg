@@ -73,18 +73,23 @@ func (a *ASTNode) String() string {
         return result
 }
 
-// ConstructList constructs a list-type AST node from a parent type, a head
-// child, and tail children.  (Children may be nil.)  The idea is to
-// produce a single list of children (e.g., [a, b, c]) rather than a degenerate
-// tree (e.g., [a, [b, [c]]]), which is what straightforward construction would
-// naturally produce.
-func (c *current) ConstructList(t ASTNodeType, n, ns interface{}) *ASTNode {
+// ConstructList constructs a list-type AST node from a parent type, a parent
+// value (which defaults to the node's textual representation), a head child,
+// and tail children.  (Children may be nil.)  The idea is to produce a single
+// list of children (e.g., [a, b, c]) rather than a degenerate tree (e.g., [a,
+// [b, [c]]]), which is what straightforward construction would naturally
+// produce.
+func (c *current) ConstructList(t ASTNodeType, v, n, ns interface{}) *ASTNode {
         head, hasHead := n.(*ASTNode)
         tail, hasTail := ns.(*ASTNode)
         node := ASTNode{
-                Type: t,
-                Text: string(c.text),
-                Pos:  c.pos,
+                Type:  t,
+                Text:  string(c.text),
+                Value: v,
+                Pos:   c.pos,
+        }
+        if v == nil {
+                node.Value = node.Text
         }
         if !hasHead {
                 return &node
@@ -119,44 +124,44 @@ func (c *current) PrepareRelation(e1, o, e2 interface{}) *ASTNode {
 // For now, we define a Prolog program as a list of clauses.  Later, we'll
 // include queries as part of a program.
 Program <- Skip cl:ClauseList Skip EOF {
-        return c.ConstructList(ProgramType, cl, nil), nil
+        return c.ConstructList(ProgramType, nil, cl, nil), nil
 }
 
 // Return an AST node of type QueryType.
 Query <- "?-" Skip p:PredicateList {
-        return c.ConstructList(QueryType, p, nil), nil
+        return c.ConstructList(QueryType, nil, p, nil), nil
 }
 
 // Return an AST node of type ClauseListType.
 ClauseList <- cl:Clause Skip cls:ClauseList {
-        return c.ConstructList(ClauseListType, cl, cls), nil
+        return c.ConstructList(ClauseListType, nil, cl, cls), nil
 } / cl:Clause {
-        return c.ConstructList(ClauseListType, cl, nil), nil
+        return c.ConstructList(ClauseListType, nil, cl, nil), nil
 }
 
 // Return an AST node of type ClauseType.
 Clause <- p:Predicate Skip ":-" Skip ps:PredicateList Skip '.' {
         // Rule
-        return c.ConstructList(ClauseType, p, ps), nil
+        return c.ConstructList(ClauseType, nil, p, ps), nil
 } / p:Predicate Skip '.' {
         // Fact
-        return c.ConstructList(ClauseType, p, nil), nil
+        return c.ConstructList(ClauseType, nil, p, nil), nil
 }
 
 // Return an AST node of type PredicateListType.
 PredicateList <- p:Predicate Skip ',' Skip ps:PredicateList {
-        return c.ConstructList(PredicateListType, p, ps), nil
+        return c.ConstructList(PredicateListType, nil, p, ps), nil
 } / p:Predicate {
-        return c.ConstructList(PredicateListType, p, nil), nil
+        return c.ConstructList(PredicateListType, nil, p, nil), nil
 }
 
 // Return an AST node of type PredicateType.
 Predicate <- r:Relation {
-        return c.ConstructList(PredicateType, r, nil), nil
+        return c.ConstructList(PredicateType, nil, r, nil), nil
 } / a:Atom Skip '(' Skip ts:TermList Skip ')' {
-        return c.ConstructList(PredicateType, a, ts), nil
+        return c.ConstructList(PredicateType, nil, a, ts), nil
 } / a:Atom {
-        return c.ConstructList(PredicateType, a, nil), nil
+        return c.ConstructList(PredicateType, nil, a, nil), nil
 }
 
 // Return an AST node of type RelationType.
@@ -168,13 +173,13 @@ Relation <- (e1:AdditiveExpr Skip o:RelationOperator Skip e2:AdditiveExpr) {
 
 // A RelationOperator relates two numerical expressions.
 RelationOperator <- ("<=" / ">=" / "<" / ">" / "=" / "\\=" / "is") {
-        return c.ConstructList(RelationOpType, nil, nil), nil
+        return c.ConstructList(RelationOpType, nil, nil, nil), nil
 }
 
 // An EqualityOperator relates two arbitrary expressions by equality or
 // inequality.
 EqualityOperator <- ("=" / "\\=" ) {
-        return c.ConstructList(RelationOpType, nil, nil), nil
+        return c.ConstructList(RelationOpType, nil, nil, nil), nil
 }
 
 // An AdditiveExpr adds two values.
@@ -187,17 +192,18 @@ AdditiveExpr <- e1:MultiplicativeExpr Skip o:AdditiveOperator Skip e2:Multiplica
         node := ASTNode{
                 Type:     AdditiveExprType,
                 Text:     string(c.text),
+                Value:    kids[1].Value,
                 Pos:      c.pos,
                 Children: kids,
         }
         return &node, nil
 } / e:MultiplicativeExpr {
-        return c.ConstructList(AdditiveExprType, e, nil), nil
+        return c.ConstructList(AdditiveExprType, nil, e, nil), nil
 }
 
 // An AdditiveOperator applies to two values.
 AdditiveOperator <- ('+' / '-') {
-        return c.ConstructList(AdditiveOpType, nil, nil), nil
+        return c.ConstructList(AdditiveOpType, nil, nil, nil), nil
 }
 
 // A MultiplicativeExpr multiplies two values.
@@ -210,17 +216,18 @@ MultiplicativeExpr <- e1:UnaryExpr Skip o:MultiplicativeOperator Skip e2:UnaryEx
         node := ASTNode{
                 Type:     MultiplicativeExprType,
                 Text:     string(c.text),
+                Value:    kids[1].Value,
                 Pos:      c.pos,
                 Children: kids,
         }
         return &node, nil
 } / e:UnaryExpr {
-        return c.ConstructList(MultiplicativeExprType, e, nil), nil
+        return c.ConstructList(MultiplicativeExprType, nil, e, nil), nil
 }
 
 // A MultiplicativeOperator applies to two values.
 MultiplicativeOperator <- '*' {
-        return c.ConstructList(MultiplicativeOpType, nil, nil), nil
+        return c.ConstructList(MultiplicativeOpType, nil, nil, nil), nil
 }
 
 // A UnaryExpr transforms a single value.
@@ -232,70 +239,69 @@ UnaryExpr <- o:UnaryOperator Skip e:PrimaryExpr {
         node := ASTNode{
                 Type:     UnaryExprType,
                 Text:     string(c.text),
+                Value:    kids[1].Value,
                 Pos:      c.pos,
                 Children: kids,
         }
         return &node, nil
 } / e:PrimaryExpr {
-        return c.ConstructList(UnaryExprType, e, nil), nil
+        return c.ConstructList(UnaryExprType, nil, e, nil), nil
 }
 
 // A UnaryOperator applies to a single value.
 UnaryOperator <- '-' {
-        return c.ConstructList(UnaryOpType, nil, nil), nil
+        return c.ConstructList(UnaryOpType, nil, nil, nil), nil
 }
 
 // A PrimaryExpr is the lowest-level expression, an atomic unit.
 PrimaryExpr <- '(' Skip p:PrimaryExpr Skip ')' {
-        return c.ConstructList(PrimaryExprType, p, nil), nil
+        return c.ConstructList(PrimaryExprType, "()", p, nil), nil
 } / n:Numeral {
-        return c.ConstructList(PrimaryExprType, n, nil), nil
+        return c.ConstructList(PrimaryExprType, nil, n, nil), nil
 } / v:Variable {
-        return c.ConstructList(PrimaryExprType, v, nil), nil
+        return c.ConstructList(PrimaryExprType, nil, v, nil), nil
 }
 
 // Return an AST node of type TermListType.
 TermList <- t:Term Skip "," Skip ts:TermList {
-        return c.ConstructList(TermListType, t, ts), nil
+        return c.ConstructList(TermListType, nil, t, ts), nil
 } / t:Term {
-        return c.ConstructList(TermListType, t, nil), nil
+        return c.ConstructList(TermListType, nil, t, nil), nil
 }
 
 // Return an AST node of type TermType.
 Term <- child:(Numeral / Structure / Atom / Variable / List) {
-        return c.ConstructList(TermType, child, nil), nil
+        return c.ConstructList(TermType, nil, child, nil), nil
 }
 
 // A List can be either of bounded or unbounded extent (e.g., [1, 2, 3] vs. [1,
 // 2, 3|Rest]).
 List <- '[' Skip h:TermList Skip '|' Skip t:ListTail Skip ']' {
         // Unbounded extent
-        return c.ConstructList(ListType, h, t), nil
+        return c.ConstructList(ListType, "[|]", h, t), nil
 } / '[' Skip h:TermList Skip ']' {
         // Bounded extent
-        return c.ConstructList(ListType, h, nil), nil
+        return c.ConstructList(ListType, "[]", h, nil), nil
 }
 
 // A ListTail represents the "everything else" part of a list.
 ListTail <- v:Variable {
-        return c.ConstructList(ListTailType, v, nil), nil
+        return c.ConstructList(ListTailType, nil, v, nil), nil
 }
 
 // Return an AST node of type StructureType.
 Structure <- a:Atom Skip '(' Skip ts:TermList Skip ')' {
-        return c.ConstructList(StructureType, a, ts), nil
+        return c.ConstructList(StructureType, nil, a, ts), nil
 }
 
 // Return an AST node of type VariableType.
 Variable <- Uppercase_letter Symbol_trailer {
-        return c.ConstructList(VariableType, nil, nil), nil
+        return c.ConstructList(VariableType, nil, nil, nil), nil
 }
 
 // Return an AST node of type AtomType.
 Atom <- Small_atom {
-        node := c.ConstructList(AtomType, nil, nil)
-	node.Value = node.Text
-	return node, nil
+        return c.ConstructList(AtomType, nil, nil, nil), nil
 } / Single_quoted_string {
         s := string(c.text)
         node := ASTNode{
