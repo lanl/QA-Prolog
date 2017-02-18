@@ -114,6 +114,7 @@ func (c *current) PrepareRelation(e1, o, e2 interface{}) *ASTNode {
                 Type:     RelationType,
                 Text:     string(c.text),
                 Pos:      c.pos,
+		Value:    kids[1].Text,
                 Children: kids,
         }
         return &node
@@ -198,7 +199,7 @@ AdditiveExpr <- e1:MultiplicativeExpr Skip o:AdditiveOperator Skip e2:Multiplica
         }
         return &node, nil
 } / e:MultiplicativeExpr {
-        return c.ConstructList(AdditiveExprType, nil, e, nil), nil
+        return c.ConstructList(AdditiveExprType, "", e, nil), nil
 }
 
 // An AdditiveOperator applies to two values.
@@ -222,7 +223,7 @@ MultiplicativeExpr <- e1:UnaryExpr Skip o:MultiplicativeOperator Skip e2:UnaryEx
         }
         return &node, nil
 } / e:UnaryExpr {
-        return c.ConstructList(MultiplicativeExprType, nil, e, nil), nil
+        return c.ConstructList(MultiplicativeExprType, "", e, nil), nil
 }
 
 // A MultiplicativeOperator applies to two values.
@@ -245,7 +246,7 @@ UnaryExpr <- o:UnaryOperator Skip e:PrimaryExpr {
         }
         return &node, nil
 } / e:PrimaryExpr {
-        return c.ConstructList(UnaryExprType, nil, e, nil), nil
+        return c.ConstructList(UnaryExprType, "", e, nil), nil
 }
 
 // A UnaryOperator applies to a single value.
@@ -257,9 +258,9 @@ UnaryOperator <- '-' {
 PrimaryExpr <- '(' Skip p:PrimaryExpr Skip ')' {
         return c.ConstructList(PrimaryExprType, "()", p, nil), nil
 } / n:Numeral {
-        return c.ConstructList(PrimaryExprType, nil, n, nil), nil
+        return c.ConstructList(PrimaryExprType, "", n, nil), nil
 } / v:Variable {
-        return c.ConstructList(PrimaryExprType, nil, v, nil), nil
+        return c.ConstructList(PrimaryExprType, "", v, nil), nil
 }
 
 // Return an AST node of type TermListType.
