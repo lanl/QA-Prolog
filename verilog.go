@@ -56,14 +56,110 @@ func (c *ASTNode) args() (pArgs, vArgs []string) {
 	return
 }
 
+// prologToVerilogAdd maps a Prolog additive operator to a Verilog additive
+// operator.
+var prologToVerilogAdd map[string]string = map[string]string{
+	"+": "+",
+	"-": "-",
+}
+
+// prologToVerilogMult maps a Prolog multiplicative operator to a Verilog
+// multiplicative operator.
+var prologToVerilogMult map[string]string = map[string]string{
+	"*": "*",
+}
+
+// prologToVerilogRel maps a Prolog relational operator to a Verilog relational
+// operator.
+var prologToVerilogRel map[string]string = map[string]string{
+	"<=":  "<=",
+	">=":  ">=",
+	"<":   "<",
+	">":   ">",
+	"=":   "==",
+	"\\=": "!=",
+	"is":  "==",
+}
+
 // toVerilogExpr recursively converts an AST, starting from a clause's body
 // predicate, to an expression.
 func (a *ASTNode) toVerilogExpr() string {
 	switch a.Type {
 	case NumeralType:
 		return a.Text
+
+	case VariableType, AtomType:
+		return a.Value.(string)
+
+	case AdditiveOpType:
+		v, ok := prologToVerilogAdd[a.Value.(string)]
+		if !ok {
+			notify.Fatalf("Internal error: Failed to convert %s %q from Prolog to Verilog", a.Type, a.Value.(string))
+		}
+		return v
+
+	case MultiplicativeOpType:
+		v, ok := prologToVerilogMult[a.Value.(string)]
+		if !ok {
+			notify.Fatalf("Internal error: Failed to convert %s %q from Prolog to Verilog", a.Type, a.Value.(string))
+		}
+		return v
+
+	case RelationOpType:
+		v, ok := prologToVerilogRel[a.Value.(string)]
+		if !ok {
+			notify.Fatalf("Internal error: Failed to convert %s %q from Prolog to Verilog", a.Type, a.Value.(string))
+		}
+		return v
+
+	case PrimaryExprType:
+		c := a.Children[0].toVerilogExpr()
+		if a.Value.(string) == "()" {
+			return "(" + c + ")"
+		} else {
+			return c
+		}
+
+	case UnaryExprType:
+		if len(a.Children) == 1 {
+			return a.Children[0].toVerilogExpr()
+		} else {
+			return a.Children[0].toVerilogExpr() + a.Children[1].toVerilogExpr()
+		}
+
+	case MultiplicativeExprType:
+		if len(a.Children) == 1 {
+			return a.Children[0].toVerilogExpr()
+		} else {
+			c1 := a.Children[0].toVerilogExpr()
+			v := a.Children[1].toVerilogExpr()
+			c2 := a.Children[2].toVerilogExpr()
+			return c1 + v + c2
+		}
+
+	case AdditiveExprType:
+		if len(a.Children) == 1 {
+			return a.Children[0].toVerilogExpr()
+		} else {
+			c1 := a.Children[0].toVerilogExpr()
+			v := a.Children[1].toVerilogExpr()
+			c2 := a.Children[2].toVerilogExpr()
+			return c1 + " " + v + " " + c2
+		}
+
+	case RelationType:
+		c1 := a.Children[0].toVerilogExpr()
+		v := a.Children[1].toVerilogExpr()
+		c2 := a.Children[2].toVerilogExpr()
+		return c1 + " " + v + " " + c2
+
+	case PredicateType, TermType:
+		return a.Children[0].toVerilogExpr()
+
+	default:
+		notify.Fatalf("Internal error: Unexpected AST node type %s", a.Type)
 	}
-	return ""
+	return "" // We should never get here.
 }
 
 // process converts each predicate in a clause to an assignment to a valid bit.
@@ -88,7 +184,8 @@ func (c *ASTNode) process() []string {
 			notify.Fatalf("Internal error processing %q", a)
 		}
 	}
-	notify.Printf("CLAUSE = %v", c) // Temporary
+	notify.Printf("CLAUSE = %v", c)                              // Temporary
+	notify.Printf("CHILD 1 = %v", c.Children[1].toVerilogExpr()) // Temporary
 	return valid
 }
 
