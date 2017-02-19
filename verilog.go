@@ -89,13 +89,20 @@ var prologToVerilogRel map[string]string = map[string]string{
 
 // toVerilogExpr recursively converts an AST, starting from a clause's body
 // predicate, to an expression.
-func (a *ASTNode) toVerilogExpr() string {
+func (a *ASTNode) toVerilogExpr(p2v map[string]string) string {
 	switch a.Type {
 	case NumeralType:
 		return a.Text
 
-	case VariableType, AtomType:
+	case AtomType:
 		return a.Value.(string)
+
+	case VariableType:
+		v, ok := p2v[a.Value.(string)]
+		if !ok {
+			notify.Fatalf("Internal error: Failed to convert variable %s from Prolog to Verilog", a.Value.(string))
+		}
+		return v
 
 	case UnaryOpType:
 		v, ok := prologToVerilogUnary[a.Value.(string)]
@@ -126,7 +133,7 @@ func (a *ASTNode) toVerilogExpr() string {
 		return v
 
 	case PrimaryExprType:
-		c := a.Children[0].toVerilogExpr()
+		c := a.Children[0].toVerilogExpr(p2v)
 		if a.Value.(string) == "()" {
 			return "(" + c + ")"
 		} else {
@@ -135,39 +142,39 @@ func (a *ASTNode) toVerilogExpr() string {
 
 	case UnaryExprType:
 		if len(a.Children) == 1 {
-			return a.Children[0].toVerilogExpr()
+			return a.Children[0].toVerilogExpr(p2v)
 		} else {
-			return a.Children[0].toVerilogExpr() + a.Children[1].toVerilogExpr()
+			return a.Children[0].toVerilogExpr(p2v) + a.Children[1].toVerilogExpr(p2v)
 		}
 
 	case MultiplicativeExprType:
 		if len(a.Children) == 1 {
-			return a.Children[0].toVerilogExpr()
+			return a.Children[0].toVerilogExpr(p2v)
 		} else {
-			c1 := a.Children[0].toVerilogExpr()
-			v := a.Children[1].toVerilogExpr()
-			c2 := a.Children[2].toVerilogExpr()
+			c1 := a.Children[0].toVerilogExpr(p2v)
+			v := a.Children[1].toVerilogExpr(p2v)
+			c2 := a.Children[2].toVerilogExpr(p2v)
 			return c1 + v + c2
 		}
 
 	case AdditiveExprType:
 		if len(a.Children) == 1 {
-			return a.Children[0].toVerilogExpr()
+			return a.Children[0].toVerilogExpr(p2v)
 		} else {
-			c1 := a.Children[0].toVerilogExpr()
-			v := a.Children[1].toVerilogExpr()
-			c2 := a.Children[2].toVerilogExpr()
+			c1 := a.Children[0].toVerilogExpr(p2v)
+			v := a.Children[1].toVerilogExpr(p2v)
+			c2 := a.Children[2].toVerilogExpr(p2v)
 			return c1 + " " + v + " " + c2
 		}
 
 	case RelationType:
-		c1 := a.Children[0].toVerilogExpr()
-		v := a.Children[1].toVerilogExpr()
-		c2 := a.Children[2].toVerilogExpr()
+		c1 := a.Children[0].toVerilogExpr(p2v)
+		v := a.Children[1].toVerilogExpr(p2v)
+		c2 := a.Children[2].toVerilogExpr(p2v)
 		return c1 + " " + v + " " + c2
 
 	case PredicateType, TermType:
-		return a.Children[0].toVerilogExpr()
+		return a.Children[0].toVerilogExpr(p2v)
 
 	default:
 		notify.Fatalf("Internal error: Unexpected AST node type %s", a.Type)
@@ -176,7 +183,7 @@ func (a *ASTNode) toVerilogExpr() string {
 }
 
 // process converts each predicate in a clause to an assignment to a valid bit.
-func (c *ASTNode) process() []string {
+func (c *ASTNode) process(p2v map[string]string) []string {
 	// Assign validity based on matches on any specified input symbols or
 	// numbers.
 	valid := make([]string, 0, len(c.Children))
@@ -197,8 +204,6 @@ func (c *ASTNode) process() []string {
 			notify.Fatalf("Internal error processing %q", a)
 		}
 	}
-	notify.Printf("CLAUSE = %v", c)                              // Temporary
-	notify.Printf("CHILD 1 = %v", c.Children[1].toVerilogExpr()) // Temporary
 	return valid
 }
 
@@ -229,7 +234,16 @@ func (a *ASTNode) writeClauseGroup(w io.Writer, p *Parameters, nm string, cs []*
 
 	// Assign validity conditions based on each clause in the clause group.
 	for i, c := range cs {
-		valid := c.process()
+		// Construct a map from Prolog variables to Verilog variablees.
+		pArgs, vArgs := c.args()
+		p2v := make(map[string]string, len(pArgs))
+		for i, p := range pArgs {
+			p2v[p] = vArgs[i]
+		}
+
+		// Convert the clause body to a list of Boolean Verilog
+		// expressions.
+		valid := c.process(p2v)
 		fmt.Fprintf(w, "  wire [%d:0] $v%d;\n", len(valid)-1, i+1)
 		for j, v := range valid {
 			fmt.Fprintf(w, "  assign $v%d[%d] = %s;\n", i+1, j, v)
