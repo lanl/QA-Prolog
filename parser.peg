@@ -114,7 +114,7 @@ func (c *current) PrepareRelation(e1, o, e2 interface{}) *ASTNode {
                 Type:     RelationType,
                 Text:     string(c.text),
                 Pos:      c.pos,
-		Value:    kids[1].Text,
+                Value:    kids[1].Text,
                 Children: kids,
         }
         return &node
@@ -255,8 +255,8 @@ UnaryOperator <- '-' {
 }
 
 // A PrimaryExpr is the lowest-level expression, an atomic unit.
-PrimaryExpr <- '(' Skip p:PrimaryExpr Skip ')' {
-        return c.ConstructList(PrimaryExprType, "()", p, nil), nil
+PrimaryExpr <- '(' Skip a:AdditiveExpr Skip ')' {
+        return c.ConstructList(PrimaryExprType, "()", a, nil), nil
 } / n:Numeral {
         return c.ConstructList(PrimaryExprType, "", n, nil), nil
 } / v:Variable {

@@ -56,6 +56,12 @@ func (c *ASTNode) args() (pArgs, vArgs []string) {
 	return
 }
 
+// prologToVerilogUnary maps a Prolog unary operator to a Verilog unary
+// operator.
+var prologToVerilogUnary map[string]string = map[string]string{
+	"-": "-",
+}
+
 // prologToVerilogAdd maps a Prolog additive operator to a Verilog additive
 // operator.
 var prologToVerilogAdd map[string]string = map[string]string{
@@ -90,6 +96,13 @@ func (a *ASTNode) toVerilogExpr() string {
 
 	case VariableType, AtomType:
 		return a.Value.(string)
+
+	case UnaryOpType:
+		v, ok := prologToVerilogUnary[a.Value.(string)]
+		if !ok {
+			notify.Fatalf("Internal error: Failed to convert %s %q from Prolog to Verilog", a.Type, a.Value.(string))
+		}
+		return v
 
 	case AdditiveOpType:
 		v, ok := prologToVerilogAdd[a.Value.(string)]
