@@ -212,10 +212,9 @@ func (c *ASTNode) process(p2v map[string]string) []string {
 	return valid
 }
 
-// writeClauseGroup writes a Verilog module corresponding to a group of clauses
-// that have the same name and arity.
-func (a *ASTNode) writeClauseGroup(w io.Writer, p *Parameters, nm string, cs []*ASTNode) {
-	// Write a module header.
+// writeClauseGroupHeader is used by writeClauseGroup to write a Verilog module
+// header.
+func (a *ASTNode) writeClauseGroupHeader(w io.Writer, p *Parameters, nm string, cs []*ASTNode) {
 	_, vArgs := cs[0].args()
 	fmt.Fprintf(w, "// Define %s.\n", nm)
 	fmt.Fprintf(w, "module \\%s (", nm)
@@ -236,23 +235,42 @@ func (a *ASTNode) writeClauseGroup(w io.Writer, p *Parameters, nm string, cs []*
 		}
 	}
 	fmt.Fprintln(w, "  output $valid;")
+}
+
+// writeClauseBody is used by writeClauseGroup to assign a Verilog bit for each
+// Prolog predicate in a clause's body.
+func (c *ASTNode) writeClauseBody(w io.Writer, p *Parameters, nm string, cNum int) {
+	// Construct a map from Prolog variables to Verilog variablees.
+	pArgs, vArgs := c.args()
+	p2v := make(map[string]string, len(pArgs))
+	for i, p := range pArgs {
+		p2v[p] = vArgs[i]
+	}
+
+	// Convert the clause body to a list of Boolean Verilog
+	// expressions.
+	valid := c.process(p2v)
+	if len(valid) == 0 {
+		// Although not normally used in practice, handle
+		// useless clauses that accept all inputs (e.g.,
+		// "stupid(A, B, C).").
+		valid = append(valid, "1'b1")
+	}
+	fmt.Fprintf(w, "  wire [%d:0] $v%d;\n", len(valid)-1, cNum+1)
+	for i, v := range valid {
+		fmt.Fprintf(w, "  assign $v%d[%d] = %s;\n", cNum+1, i, v)
+	}
+}
+
+// writeClauseGroup writes a Verilog module corresponding to a group of clauses
+// that have the same name and arity.
+func (a *ASTNode) writeClauseGroup(w io.Writer, p *Parameters, nm string, cs []*ASTNode) {
+	// Write a module header.
+	a.writeClauseGroupHeader(w, p, nm, cs)
 
 	// Assign validity conditions based on each clause in the clause group.
 	for i, c := range cs {
-		// Construct a map from Prolog variables to Verilog variablees.
-		pArgs, vArgs := c.args()
-		p2v := make(map[string]string, len(pArgs))
-		for i, p := range pArgs {
-			p2v[p] = vArgs[i]
-		}
-
-		// Convert the clause body to a list of Boolean Verilog
-		// expressions.
-		valid := c.process(p2v)
-		fmt.Fprintf(w, "  wire [%d:0] $v%d;\n", len(valid)-1, i+1)
-		for j, v := range valid {
-			fmt.Fprintf(w, "  assign $v%d[%d] = %s;\n", i+1, j, v)
-		}
+		c.writeClauseBody(w, p, nm, i)
 	}
 
 	// Set the final validity bit to the intersection of all predicate
