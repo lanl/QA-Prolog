@@ -204,6 +204,11 @@ func (c *ASTNode) process(p2v map[string]string) []string {
 			notify.Fatalf("Internal error processing %q", a)
 		}
 	}
+
+	// Assign validity based on each predicate in the clause's body.
+	for _, p := range c.Children[1:] {
+		valid = append(valid, p.toVerilogExpr(p2v))
+	}
 	return valid
 }
 
