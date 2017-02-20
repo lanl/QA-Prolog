@@ -240,16 +240,24 @@ func (a *ASTNode) writeClauseGroupHeader(w io.Writer, p *Parameters, nm string, 
 // writeClauseBody is used by writeClauseGroup to assign a Verilog bit for each
 // Prolog predicate in a clause's body.
 func (c *ASTNode) writeClauseBody(w io.Writer, p *Parameters, nm string, cNum int) {
-	// Construct a map from Prolog variables to Verilog variablees.
+	// Construct a map from Prolog variables to Verilog variables.  As we
+	// go along, constrain all variables with the same Prolog name to have
+	// the same value.
+	valid := make([]string, 0)
 	pArgs, vArgs := c.args()
 	p2v := make(map[string]string, len(pArgs))
 	for i, p := range pArgs {
-		p2v[p] = vArgs[i]
+		v, seen := p2v[p]
+		if seen {
+			valid = append(valid, vArgs[i]+" == "+v)
+		} else {
+			p2v[p] = vArgs[i]
+		}
 	}
 
 	// Convert the clause body to a list of Boolean Verilog
 	// expressions.
-	valid := c.process(p2v)
+	valid = append(valid, c.process(p2v)...)
 	if len(valid) == 0 {
 		// Although not normally used in practice, handle
 		// useless clauses that accept all inputs (e.g.,
