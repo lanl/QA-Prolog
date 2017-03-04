@@ -156,3 +156,40 @@ func (a *ASTNode) BinClauses(p *Parameters) {
 	}
 	p.TopLevel = bins
 }
+
+// numToVerVar converts a parameter number from 0-701 (e.g., 5) to a Verilog
+// variable (e.g., "\$E").
+func numToVerVar(n int) string {
+	const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	const nChars = len(chars)
+	switch {
+	case n < nChars:
+		return "$" + chars[n:n+1]
+	case n < nChars*(nChars+1):
+		n0 := n % nChars
+		n1 := n / nChars
+		return "$" + chars[n1-1:n1] + chars[n0:n0+1]
+	default:
+		notify.Fatal("Too many parameters")
+	}
+	return "" // Will never get here.
+}
+
+// augmentVerilogVars associates Verilog variables with Prolog variables unless
+// they already appear in the given map.
+func (a *ASTNode) augmentVerilogVars(minN int, p2v map[string]string) map[string]string {
+	varNodes := a.FindByType(VariableType)
+	new_p2v := make(map[string]string, len(varNodes))
+	for _, pv := range varNodes {
+		pVar := pv.Text
+		if _, seen := p2v[pVar]; seen {
+			continue
+		}
+		if _, seen := new_p2v[pVar]; seen {
+			continue
+		}
+		new_p2v[pVar] = numToVerVar(minN)
+		minN++
+	}
+	return new_p2v
+}

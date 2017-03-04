@@ -25,24 +25,6 @@ func (a *ASTNode) writeSymbols(w io.Writer, p *Parameters) {
 	}
 }
 
-// numToVerVar converts a parameter number from 0-701 (e.g., 5) to a Verilog
-// variable (e.g., "\$E").
-func numToVerVar(n int) string {
-	const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	const nChars = len(chars)
-	switch {
-	case n < nChars:
-		return "$" + chars[n:n+1]
-	case n < nChars*(nChars+1):
-		n0 := n % nChars
-		n1 := n / nChars
-		return "$" + chars[n1-1:n1] + chars[n0:n0+1]
-	default:
-		notify.Fatal("Too many parameters")
-	}
-	return "" // Will never get here.
-}
-
 // args retrieves a clause's arguments in both Prolog and Verilog format.
 func (c *ASTNode) args() (pArgs, vArgs []string) {
 	pred := c.Children[0]
@@ -215,6 +197,7 @@ func (c *ASTNode) process(p2v map[string]string) []string {
 // writeClauseGroupHeader is used by writeClauseGroup to write a Verilog module
 // header.
 func (a *ASTNode) writeClauseGroupHeader(w io.Writer, p *Parameters, nm string, cs []*ASTNode) {
+	// Write the module prototype.
 	_, vArgs := cs[0].args()
 	fmt.Fprintf(w, "// Define %s.\n", nm)
 	fmt.Fprintf(w, "module \\%s (", nm)
@@ -225,6 +208,8 @@ func (a *ASTNode) writeClauseGroupHeader(w io.Writer, p *Parameters, nm string, 
 		fmt.Fprint(w, a)
 	}
 	fmt.Fprintln(w, ", $valid);")
+
+	// Write the module inputs.
 	if p.IntBits == 1 {
 		for _, a := range vArgs {
 			fmt.Fprintf(w, "  input %s;\n", a)
@@ -234,12 +219,15 @@ func (a *ASTNode) writeClauseGroupHeader(w io.Writer, p *Parameters, nm string, 
 			fmt.Fprintf(w, "  input [%d:0] %s;\n", p.IntBits-1, a)
 		}
 	}
+
+	// Write the module output.
 	fmt.Fprintln(w, "  output $valid;")
 }
 
 // writeClauseBody is used by writeClauseGroup to assign a Verilog bit for each
-// Prolog predicate in a clause's body.
-func (c *ASTNode) writeClauseBody(w io.Writer, p *Parameters, nm string, cNum int) {
+// Prolog predicate in a clause's body.  It returns the number of new variables
+// introduced.
+func (c *ASTNode) writeClauseBody(w io.Writer, p *Parameters, nm string, cNum int, nVars int) int {
 	// Construct a map from Prolog variables to Verilog variables.  As we
 	// go along, constrain all variables with the same Prolog name to have
 	// the same value.
@@ -255,6 +243,17 @@ func (c *ASTNode) writeClauseBody(w io.Writer, p *Parameters, nm string, cNum in
 		}
 	}
 
+	// Introduce more Verilog variables for local Prolog variables.
+	for pName, vName := range c.augmentVerilogVars(nVars, p2v) {
+		if p.IntBits == 1 {
+			fmt.Fprintf(w, "  (* keep *) wire %s;\n", vName)
+		} else {
+			fmt.Fprintf(w, "  (* keep *) wire [%d:0] %s;\n", p.IntBits-1, vName)
+		}
+		p2v[pName] = vName
+		nVars++
+	}
+
 	// Convert the clause body to a list of Boolean Verilog
 	// expressions.
 	valid = append(valid, c.process(p2v)...)
@@ -268,6 +267,7 @@ func (c *ASTNode) writeClauseBody(w io.Writer, p *Parameters, nm string, cNum in
 	for i, v := range valid {
 		fmt.Fprintf(w, "  assign $v%d[%d] = %s;\n", cNum+1, i, v)
 	}
+	return nVars
 }
 
 // writeClauseGroup writes a Verilog module corresponding to a group of clauses
@@ -277,8 +277,10 @@ func (a *ASTNode) writeClauseGroup(w io.Writer, p *Parameters, nm string, cs []*
 	a.writeClauseGroupHeader(w, p, nm, cs)
 
 	// Assign validity conditions based on each clause in the clause group.
+	_, vArgs := cs[0].args()
+	nVars := len(vArgs)
 	for i, c := range cs {
-		c.writeClauseBody(w, p, nm, i)
+		nVars += c.writeClauseBody(w, p, nm, i, nVars)
 	}
 
 	// Set the final validity bit to the intersection of all predicate
