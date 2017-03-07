@@ -5,8 +5,21 @@ package main
 import (
 	"fmt"
 	"io"
+	"math/rand"
+	"strings"
 	"unicode"
 )
+
+// Return a random string to use for an instance name.
+func generateSuffix() string {
+	const nChars = 5 // Number of characters to generate
+	const nmChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+	suffix := make([]byte, nChars)
+	for i := range suffix {
+		suffix[i] = nmChars[rand.Intn(len(nmChars))]
+	}
+	return string(suffix)
+}
 
 // writeSymbols defines all of an AST's symbols as Verilog constants.
 func (a *ASTNode) writeSymbols(w io.Writer, p *Parameters) {
@@ -155,8 +168,32 @@ func (a *ASTNode) toVerilogExpr(p2v map[string]string) string {
 		c2 := a.Children[2].toVerilogExpr(p2v)
 		return c1 + " " + v + " " + c2
 
-	case PredicateType, TermType:
+	case TermType:
 		return a.Children[0].toVerilogExpr(p2v)
+
+	case PredicateType:
+		if len(a.Children) == 1 {
+			return a.Children[0].toVerilogExpr(p2v)
+		}
+		cs := make([]string, 0, len(a.Children)*2)
+		for i, c := range a.Children {
+			switch i {
+			case 0:
+				vStr := c.toVerilogExpr(p2v)
+				sfx := generateSuffix()
+				arity := len(a.Children) - 1
+				cs = append(cs, fmt.Sprintf("\\%s/%d \\%s_%s/%d",
+					vStr, arity, vStr, sfx, arity))
+			case 1:
+				cs = append(cs, " (")
+				cs = append(cs, c.toVerilogExpr(p2v))
+			default:
+				cs = append(cs, ", ")
+				cs = append(cs, c.toVerilogExpr(p2v))
+			}
+		}
+		cs = append(cs, ", %s)")
+		return strings.Join(cs, "")
 
 	default:
 		notify.Fatalf("Internal error: Unexpected AST node type %s", a.Type)
@@ -265,7 +302,12 @@ func (c *ASTNode) writeClauseBody(w io.Writer, p *Parameters, nm string, cNum in
 	}
 	fmt.Fprintf(w, "  wire [%d:0] $v%d;\n", len(valid)-1, cNum+1)
 	for i, v := range valid {
-		fmt.Fprintf(w, "  assign $v%d[%d] = %s;\n", cNum+1, i, v)
+		vBit := fmt.Sprintf("$v%d[%d]", cNum+1, i)
+		if strings.Contains(v, "%s") {
+			fmt.Fprintf(w, "  "+v+";\n", vBit)
+		} else {
+			fmt.Fprintf(w, "  assign %s = %s;\n", vBit, v)
+		}
 	}
 	return nVars
 }
