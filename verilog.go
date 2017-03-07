@@ -179,7 +179,7 @@ func (c *ASTNode) process(p2v map[string]string) []string {
 		case unicode.IsDigit(r0):
 			// Numeral
 			valid = append(valid, fmt.Sprintf("%s == %s", vArgs[i], a))
-		case unicode.IsUpper(r0):
+		case unicode.IsUpper(r0), r0 == '_':
 			// Variable
 
 		default:
