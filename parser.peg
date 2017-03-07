@@ -184,7 +184,7 @@ EqualityOperator <- ("=" / "\\=" ) {
 }
 
 // An AdditiveExpr adds two values.
-AdditiveExpr <- e1:MultiplicativeExpr Skip o:AdditiveOperator Skip e2:MultiplicativeExpr {
+AdditiveExpr <- e1:MultiplicativeExpr Skip o:AdditiveOperator Skip e2:AdditiveExpr {
         kids := []*ASTNode{
                 e1.(*ASTNode),
                 o.(*ASTNode),
@@ -208,7 +208,7 @@ AdditiveOperator <- ('+' / '-') {
 }
 
 // A MultiplicativeExpr multiplies two values.
-MultiplicativeExpr <- e1:UnaryExpr Skip o:MultiplicativeOperator Skip e2:UnaryExpr {
+MultiplicativeExpr <- e1:UnaryExpr Skip o:MultiplicativeOperator Skip e2:MultiplicativeExpr {
         kids := []*ASTNode{
                 e1.(*ASTNode),
                 o.(*ASTNode),
