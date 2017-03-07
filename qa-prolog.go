@@ -24,9 +24,10 @@ func BaseName(filename string) string {
 // global values computed from the AST.
 type Parameters struct {
 	// Command-line parameters
-	ProgName   string // Name of this program
-	InFileName string // Name of the input file
-	IntBits    uint   // Number of bits to use for each program integer
+	ProgName    string // Name of this program
+	InFileName  string // Name of the input file
+	OutFileName string // Name of the output file
+	IntBits     uint   // Number of bits to use for each program integer
 
 	// Computed values
 	SymToInt map[string]int        // Map from a symbol to an integer
@@ -57,6 +58,8 @@ func main() {
 		flag.PrintDefaults()
 	}
 	flag.UintVar(&p.IntBits, "int-bits", 0, "Minimum integer width in bits")
+	flag.StringVar(&p.OutFileName, "output", "-", "name of Verilog output file or \"-\" for stdout")
+	flag.StringVar(&p.OutFileName, "o", "-", "same as -output")
 	flag.Parse()
 	if flag.NArg() == 0 {
 		p.InFileName = "<stdin>"
@@ -70,7 +73,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Parse the input file into an AST.
+	// Open the input file.
 	var r io.Reader = os.Stdin
 	if flag.NArg() > 0 {
 		f, err := os.Open(p.InFileName)
@@ -80,6 +83,21 @@ func main() {
 		defer f.Close()
 		r = f
 	}
+
+	// Open the output file.
+	var out io.Writer
+	if p.OutFileName == "-" {
+		out = os.Stdout
+	} else {
+		f, err := os.Create(p.OutFileName)
+		if err != nil {
+			notify.Fatal(err)
+		}
+		defer f.Close()
+		out = f
+	}
+
+	// Parse the input file into an AST.
 	a, err := ParseReader(p.InFileName, r)
 	if err != nil {
 		notify.Fatal(err)
@@ -93,5 +111,5 @@ func main() {
 	ast.BinClauses(&p)
 
 	// Output Verilog code.
-	ast.WriteVerilog(os.Stdout, &p)
+	ast.WriteVerilog(out, &p)
 }
