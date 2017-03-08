@@ -244,7 +244,7 @@ func (a *ASTNode) writeClauseGroupHeader(w io.Writer, p *Parameters, nm string, 
 		}
 		fmt.Fprint(w, a)
 	}
-	fmt.Fprintln(w, ", $valid);")
+	fmt.Fprintln(w, ", Valid);")
 
 	// Write the module inputs.
 	if p.IntBits == 1 {
@@ -258,7 +258,7 @@ func (a *ASTNode) writeClauseGroupHeader(w io.Writer, p *Parameters, nm string, 
 	}
 
 	// Write the module output.
-	fmt.Fprintln(w, "  output $valid;")
+	fmt.Fprintln(w, "  output Valid;")
 }
 
 // writeClauseBody is used by writeClauseGroup to assign a Verilog bit for each
@@ -327,7 +327,7 @@ func (a *ASTNode) writeClauseGroup(w io.Writer, p *Parameters, nm string, cs []*
 
 	// Set the final validity bit to the intersection of all predicate
 	// validity bits.
-	fmt.Fprint(w, "  assign $valid = ")
+	fmt.Fprint(w, "  assign Valid = ")
 	for i := range cs {
 		if i > 0 {
 			fmt.Fprint(w, " | ")

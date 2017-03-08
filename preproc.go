@@ -157,18 +157,18 @@ func (a *ASTNode) BinClauses(p *Parameters) {
 	p.TopLevel = bins
 }
 
-// numToVerVar converts a parameter number from 0-701 (e.g., 5) to a Verilog
-// variable (e.g., "\$E").
+// numToVerVar converts a parameter number from 0-701 (e.g., 5) to a
+// lettered Verilog variable (e.g., "E").
 func numToVerVar(n int) string {
 	const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	const nChars = len(chars)
 	switch {
 	case n < nChars:
-		return "$" + chars[n:n+1]
+		return chars[n : n+1]
 	case n < nChars*(nChars+1):
 		n0 := n % nChars
 		n1 := n / nChars
-		return "$" + chars[n1-1:n1] + chars[n0:n0+1]
+		return chars[n1-1:n1] + chars[n0:n0+1]
 	default:
 		notify.Fatal("Too many parameters")
 	}
