@@ -143,10 +143,14 @@ ClauseList <- cl:Clause Skip cls:ClauseList {
 // Return an AST node of type ClauseType.
 Clause <- p:Predicate Skip ":-" Skip ps:PredicateList Skip '.' {
         // Rule
-        return c.ConstructList(ClauseType, nil, p, ps), nil
+	pn := p.(*ASTNode)
+	name := fmt.Sprintf("%s/%d", pn.Children[0].Value.(string), len(pn.Children)-1)
+        return c.ConstructList(ClauseType, name, p, ps), nil
 } / p:Predicate Skip '.' {
         // Fact
-        return c.ConstructList(ClauseType, nil, p, nil), nil
+	pn := p.(*ASTNode)
+	name := fmt.Sprintf("%s/%d", pn.Children[0].Value.(string), len(pn.Children)-1)
+        return c.ConstructList(ClauseType, name, p, nil), nil
 }
 
 // Return an AST node of type PredicateListType.
@@ -173,7 +177,7 @@ Relation <- (e1:AdditiveExpr Skip o:RelationOperator Skip e2:AdditiveExpr) {
 }
 
 // A RelationOperator relates two numerical expressions.
-RelationOperator <- ("<=" / ">=" / "<" / ">" / "=" / "\\=" / "is") {
+RelationOperator <- ("<=" / ">=" / "<" / ">" / "=" / "\\=") {
         return c.ConstructList(RelationOpType, nil, nil, nil), nil
 }
 
