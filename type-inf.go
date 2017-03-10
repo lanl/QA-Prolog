@@ -302,13 +302,37 @@ func (a *ASTNode) findClauseArgTypes(nm2tys map[string]ArgTypes) {
 	cl := a.Value.(string)
 	if oldTys, ok := nm2tys[cl]; ok {
 		var err error
-		nm2tys[cl], err = MergeArgTypes(oldTys, argTypes)
+		argTypes, err = MergeArgTypes(oldTys, argTypes)
 		if err != nil {
 			notify.Fatalf("%v (%s)", err, cl)
 		}
-	} else {
-		nm2tys[cl] = argTypes
 	}
+
+	// Assign the same type to every instance of a variable name.
+	var2ty := make(map[string]VarType, len(argTypes))
+	for i, v := range argNames {
+		ty1 := argTypes[i]
+		ty2, seen := var2ty[v]
+		if seen {
+			switch {
+			case ty1 == ty2:
+			case ty1 == InfUnknown:
+				var2ty[v] = ty2
+			case ty2 == InfUnknown:
+				var2ty[v] = ty1
+			default:
+				notify.Fatalf("Type mismatch on variable %s in %s: %v vs. %v", v, cl, ty1, ty2)
+			}
+		} else {
+			var2ty[v] = ty1
+		}
+	}
+	for i, v := range argNames {
+		argTypes[i] = var2ty[v]
+	}
+
+	// Update the map.
+	nm2tys[cl] = argTypes
 }
 
 // When applied to an expression node (specifically, RelationType or below),
