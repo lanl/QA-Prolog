@@ -4,7 +4,13 @@
 GO = go
 PIGEON = pigeon
 
-GO_SOURCES = qa-prolog.go parser.go preproc.go verilog.go astnodetype_string.go
+GO_SOURCES = \
+	qa-prolog.go \
+	parser.go \
+	preproc.go \
+	verilog.go \
+	type-inf.go \
+	astnodetype_string.go
 
 all: qa-prolog
 
