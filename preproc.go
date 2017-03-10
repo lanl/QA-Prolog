@@ -7,6 +7,16 @@ import (
 	"sort"
 )
 
+// BitsNeeded reports the number of bits needed to represent a given
+// nonnegative integer.
+func BitsNeeded(n int) uint {
+	b := uint(0)
+	for ; n > 0; n >>= 1 {
+		b++
+	}
+	return b
+}
+
 // RejectUnimplemented rejects the AST (i.e., aborts the program) if it
 // contains elements we do not currently know how to process.
 func (a *ASTNode) RejectUnimplemented(p *Parameters) {
@@ -51,6 +61,7 @@ func (a *ASTNode) StoreAtomNames(p *Parameters) {
 	for i, s := range p.IntToSym {
 		p.SymToInt[s] = i
 	}
+	p.SymBits = BitsNeeded(len(p.IntToSym) - 1)
 }
 
 // uniqueAtomNames constructs a set of all atoms named in an AST except
@@ -104,19 +115,7 @@ func (a *ASTNode) maxNumeral() int {
 // This function assumes that StoreAtomNames has already been called.
 func (a *ASTNode) AdjustIntBits(p *Parameters) {
 	// Ensure we can store the maximum integer literal.
-	b := uint(0)
-	for n := a.maxNumeral(); n > 0; n >>= 1 {
-		b++
-	}
-	if p.IntBits < b {
-		p.IntBits = b
-	}
-
-	// Ensure we can store the maximum symbol number.
-	b = 0
-	for n := len(p.IntToSym) - 1; n > 0; n >>= 1 {
-		b++
-	}
+	b := BitsNeeded(a.maxNumeral())
 	if p.IntBits < b {
 		p.IntBits = b
 	}

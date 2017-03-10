@@ -264,9 +264,10 @@ func MergeArgTypes(a1, a2 ArgTypes) (ArgTypes, error) {
 	return aTypes, nil
 }
 
-// When applied to a clause node, findClauseArgTypes augments a mapping from
-// clause name to argument types.
-func (a *ASTNode) findClauseArgTypes(nm2tys map[string]ArgTypes) {
+// When applied to a clause node, findClauseTypes augments a mapping from
+// clause name to argument types and returns the type of each variable used in
+// the clause.
+func (a *ASTNode) findClauseTypes(nm2tys map[string]ArgTypes) TypeInfo {
 	// Determine the name of each clause argument.
 	argNames := make([]string, len(a.Children[0].Children[1:]))
 	for i, c := range a.Children[0].Children[1:] {
@@ -333,6 +334,7 @@ func (a *ASTNode) findClauseArgTypes(nm2tys map[string]ArgTypes) {
 
 	// Update the map.
 	nm2tys[cl] = argTypes
+	return vTypes
 }
 
 // When applied to an expression node (specifically, RelationType or below),
@@ -463,15 +465,16 @@ func (a *ASTNode) findVariableTypes(nm2tys map[string]ArgTypes) TypeInfo {
 
 // PerformTypeInference returns a mapping from clause name to argument types
 // for all clauses in the target AST.
-func (a *ASTNode) PerformTypeInference() map[string]ArgTypes {
+func (a *ASTNode) PerformTypeInference() (map[string]ArgTypes, map[*ASTNode]TypeInfo) {
 	// Compute a clause order in which to apply type inference.
 	nm2cls := a.clauseNames()
 	clauses := a.orderedClauses(nm2cls)
 
 	// Perform type inference on each clause in turn.
 	nm2tys := make(map[string]ArgTypes, len(clauses))
+	clVarTys := make(map[*ASTNode]TypeInfo, len(clauses))
 	for _, cl := range clauses {
-		cl.findClauseArgTypes(nm2tys)
+		clVarTys[cl] = cl.findClauseTypes(nm2tys)
 	}
 
 	// Ensure that we didn't wind up with any polymorphic clauses.
@@ -482,5 +485,5 @@ func (a *ASTNode) PerformTypeInference() map[string]ArgTypes {
 			}
 		}
 	}
-	return nm2tys
+	return nm2tys, clVarTys
 }

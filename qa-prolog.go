@@ -33,20 +33,11 @@ type Parameters struct {
 	SymToInt map[string]int        // Map from a symbol to an integer
 	IntToSym []string              // Map from an integer to a symbol
 	TopLevel map[string][]*ASTNode // Top-level clauses, grouped by name and arity
+	SymBits  uint                  // Number of bits to use for each symbol
 }
 
 // ParseError reports a parse error at a given position.
 var ParseError func(pos position, format string, args ...interface{})
-
-// BitsNeeded reports the number of bits needed to represent a given
-// nonnegative integer.
-func BitsNeeded(n int) int {
-	b := 0
-	for ; n > 0; n >>= 1 {
-		b++
-	}
-	return b
-}
 
 func main() {
 	// Parse the command line.

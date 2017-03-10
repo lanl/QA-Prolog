@@ -34,7 +34,7 @@ func (a *ASTNode) writeSymbols(w io.Writer, p *Parameters) {
 	// TODO: Correct Verilog syntax once I regain Internet access.
 	fmt.Fprintln(w, "// Define all of the symbols used in this program.")
 	for i, s := range p.IntToSym {
-		fmt.Fprintf(w, "`define %-*s %*d\n", p.IntBits, s, digs, i)
+		fmt.Fprintf(w, "`define %-*s %*d\n", p.SymBits, s, digs, i)
 	}
 }
 
@@ -233,10 +233,18 @@ func (c *ASTNode) process(p2v map[string]string) []string {
 
 // writeClauseGroupHeader is used by writeClauseGroup to write a Verilog module
 // header.
-func (a *ASTNode) writeClauseGroupHeader(w io.Writer, p *Parameters, nm string, cs []*ASTNode) {
+func (a *ASTNode) writeClauseGroupHeader(w io.Writer, p *Parameters, nm string, cs []*ASTNode, tys ArgTypes) {
 	// Write the module prototype.
 	_, vArgs := cs[0].args()
-	fmt.Fprintf(w, "// Define %s.\n", nm)
+	rawName := strings.Split(nm, "/")[0]
+	for i, ty := range tys {
+		if i == 0 {
+			fmt.Fprintf(w, "// Define %s(%v", rawName, ty)
+		} else {
+			fmt.Fprintf(w, ", %v", ty)
+		}
+	}
+	fmt.Fprintln(w, ").")
 	fmt.Fprintf(w, "module \\%s (", nm)
 	for i, a := range vArgs {
 		if i > 0 {
@@ -247,13 +255,15 @@ func (a *ASTNode) writeClauseGroupHeader(w io.Writer, p *Parameters, nm string, 
 	fmt.Fprintln(w, ", Valid);")
 
 	// Write the module inputs.
-	if p.IntBits == 1 {
-		for _, a := range vArgs {
-			fmt.Fprintf(w, "  input %s;\n", a)
+	for i, a := range vArgs {
+		bits := p.IntBits
+		if tys[i] == InfAtom {
+			bits = p.SymBits
 		}
-	} else {
-		for _, a := range vArgs {
-			fmt.Fprintf(w, "  input [%d:0] %s;\n", p.IntBits-1, a)
+		if bits == 1 {
+			fmt.Fprintf(w, "  input %s;\n", a)
+		} else {
+			fmt.Fprintf(w, "  input [%d:0] %s;\n", bits-1, a)
 		}
 	}
 
@@ -264,7 +274,8 @@ func (a *ASTNode) writeClauseGroupHeader(w io.Writer, p *Parameters, nm string, 
 // writeClauseBody is used by writeClauseGroup to assign a Verilog bit for each
 // Prolog predicate in a clause's body.  It returns the number of new variables
 // introduced.
-func (c *ASTNode) writeClauseBody(w io.Writer, p *Parameters, nm string, cNum int, nVars int) int {
+func (c *ASTNode) writeClauseBody(w io.Writer, p *Parameters, nm string,
+	cNum int, nVars int, vTy TypeInfo) int {
 	// Construct a map from Prolog variables to Verilog variables.  As we
 	// go along, constrain all variables with the same Prolog name to have
 	// the same value.
@@ -282,10 +293,14 @@ func (c *ASTNode) writeClauseBody(w io.Writer, p *Parameters, nm string, cNum in
 
 	// Introduce more Verilog variables for local Prolog variables.
 	for pName, vName := range c.augmentVerilogVars(nVars, p2v) {
-		if p.IntBits == 1 {
+		bits := p.IntBits
+		if vTy[pName] == InfAtom {
+			bits = p.SymBits
+		}
+		if bits == 1 {
 			fmt.Fprintf(w, "  (* keep *) wire %s;\n", vName)
 		} else {
-			fmt.Fprintf(w, "  (* keep *) wire [%d:0] %s;\n", p.IntBits-1, vName)
+			fmt.Fprintf(w, "  (* keep *) wire [%d:0] %s;\n", bits-1, vName)
 		}
 		p2v[pName] = vName
 		nVars++
@@ -314,15 +329,16 @@ func (c *ASTNode) writeClauseBody(w io.Writer, p *Parameters, nm string, cNum in
 
 // writeClauseGroup writes a Verilog module corresponding to a group of clauses
 // that have the same name and arity.
-func (a *ASTNode) writeClauseGroup(w io.Writer, p *Parameters, nm string, cs []*ASTNode) {
+func (a *ASTNode) writeClauseGroup(w io.Writer, p *Parameters, nm string,
+	cs []*ASTNode, tys ArgTypes, clVarTys map[*ASTNode]TypeInfo) {
 	// Write a module header.
-	a.writeClauseGroupHeader(w, p, nm, cs)
+	a.writeClauseGroupHeader(w, p, nm, cs, tys)
 
 	// Assign validity conditions based on each clause in the clause group.
 	_, vArgs := cs[0].args()
 	nVars := len(vArgs)
 	for i, c := range cs {
-		nVars += c.writeClauseBody(w, p, nm, i, nVars)
+		nVars += c.writeClauseBody(w, p, nm, i, nVars, clVarTys[c])
 	}
 
 	// Set the final validity bit to the intersection of all predicate
@@ -341,8 +357,7 @@ func (a *ASTNode) writeClauseGroup(w io.Writer, p *Parameters, nm string, cs []*
 // WriteVerilog writes an entire (preprocessed) AST as Verilog code.
 func (a *ASTNode) WriteVerilog(w io.Writer, p *Parameters) {
 	// Perform type inference on the AST.
-	nm2tys := a.PerformTypeInference()
-	notify.Printf("TYPE INFERENCE: %v", nm2tys) // Temporary
+	nm2tys, clVarTys := a.PerformTypeInference()
 
 	// Output some header comments.
 	fmt.Fprintf(w, "// Verilog version of Prolog program %s\n", p.InFileName)
@@ -359,6 +374,6 @@ func (a *ASTNode) WriteVerilog(w io.Writer, p *Parameters) {
 	// Write each clause in turn.
 	for nm, cs := range p.TopLevel {
 		fmt.Fprintln(w, "")
-		a.writeClauseGroup(w, p, nm, cs)
+		a.writeClauseGroup(w, p, nm, cs, nm2tys[nm], clVarTys)
 	}
 }
