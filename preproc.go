@@ -62,6 +62,9 @@ func (a *ASTNode) StoreAtomNames(p *Parameters) {
 		p.SymToInt[s] = i
 	}
 	p.SymBits = BitsNeeded(len(p.IntToSym) - 1)
+	if p.SymBits == 0 {
+		p.SymBits = 1 // Need at least one bit
+	}
 }
 
 // uniqueAtomNames constructs a set of all atoms named in an AST except
