@@ -350,6 +350,11 @@ func (a *ASTNode) findExprType() VarType {
 
 	case PrimaryExprType, UnaryExprType, MultiplicativeExprType, AdditiveExprType:
 		// Arithmetic applies only to numerals.
+		if len(a.Children) == 1 {
+			// Trivial wrapper for an underlying expression: Ask
+			// they underlying expression for its type.
+			return a.Children[0].findExprType()
+		}
 		return InfNumeral
 
 	case TermType:
@@ -359,7 +364,7 @@ func (a *ASTNode) findExprType() VarType {
 		// Relations are either numeric or unknown, depending on the
 		// specific relation.
 		op := a.Children[1].Value.(string)
-		if op == "=" || op == "!=" {
+		if op == "=" || op == "\\=" {
 			// Equality and inequality are polymorphic.  See if we
 			// can determine the type from our arguments.
 			t1 := a.Children[0].findExprType()
