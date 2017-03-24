@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 )
 
@@ -24,20 +25,31 @@ func BaseName(filename string) string {
 // global values computed from the AST.
 type Parameters struct {
 	// Command-line parameters
-	ProgName    string // Name of this program
-	InFileName  string // Name of the input file
-	OutFileName string // Name of the output file
-	IntBits     uint   // Number of bits to use for each program integer
+	ProgName   string // Name of this program
+	InFileName string // Name of the input file
+	WorkDir    string // Directory for holding intermediate files
+	IntBits    uint   // Number of bits to use for each program integer
+	Verbose    bool   // Whether to output verbose execution information
 
 	// Computed values
-	SymToInt map[string]int        // Map from a symbol to an integer
-	IntToSym []string              // Map from an integer to a symbol
-	TopLevel map[string][]*ASTNode // Top-level clauses, grouped by name and arity
-	SymBits  uint                  // Number of bits to use for each symbol
+	SymToInt      map[string]int        // Map from a symbol to an integer
+	IntToSym      []string              // Map from an integer to a symbol
+	TopLevel      map[string][]*ASTNode // Top-level clauses, grouped by name and arity
+	SymBits       uint                  // Number of bits to use for each symbol
+	OutFileBase   string                // Base name (no path or extension) for output files
+	DeleteWorkDir bool                  // Whether to delete WorkDir at the end of the program
 }
 
 // ParseError reports a parse error at a given position.
 var ParseError func(pos position, format string, args ...interface{})
+
+// VerbosePrintf outputs a message only if verbose output is enabled.
+func VerbosePrintf(p *Parameters, fmt string, args ...interface{}) {
+	if !p.Verbose {
+		return
+	}
+	notify.Printf("INFO: "+fmt, args...)
+}
 
 func main() {
 	// Parse the command line.
@@ -48,9 +60,10 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [<options>] [<infile.pl>]\n\n", p.ProgName)
 		flag.PrintDefaults()
 	}
-	flag.UintVar(&p.IntBits, "int-bits", 0, "Minimum integer width in bits")
-	flag.StringVar(&p.OutFileName, "output", "-", "name of Verilog output file or \"-\" for stdout")
-	flag.StringVar(&p.OutFileName, "o", "-", "same as -output")
+	flag.UintVar(&p.IntBits, "int-bits", 0, "minimum integer width in bits")
+	flag.StringVar(&p.WorkDir, "work-dir", "", "directory for storing intermediate files (default: "+path.Join(os.TempDir(), "qap-*")+")")
+	flag.BoolVar(&p.Verbose, "verbose", false, "output informational messages during execution")
+	flag.BoolVar(&p.Verbose, "v", false, "same as -verbose")
 	flag.Parse()
 	if flag.NArg() == 0 {
 		p.InFileName = "<stdin>"
@@ -75,20 +88,20 @@ func main() {
 		r = f
 	}
 
-	// Open the output file.
-	var out io.Writer
-	if p.OutFileName == "-" {
-		out = os.Stdout
-	} else {
-		f, err := os.Create(p.OutFileName)
-		if err != nil {
-			notify.Fatal(err)
-		}
-		defer f.Close()
-		out = f
+	// Open the Verilog output file.
+	oName := filepath.Base(p.InFileName)
+	oName = oName[:len(oName)-len(filepath.Ext(oName))]
+	p.OutFileBase = oName
+	CreateWorkDir(&p)
+	vName := p.OutFileBase + ".v"
+	vf, err := os.Create(path.Join(p.WorkDir, vName))
+	if err != nil {
+		notify.Fatal(err)
 	}
+	defer vf.Close()
 
 	// Parse the input file into an AST.
+	VerbosePrintf(&p, "Parsing %s as Prolog code", p.InFileName)
 	a, err := ParseReader(p.InFileName, r)
 	if err != nil {
 		notify.Fatal(err)
@@ -102,5 +115,21 @@ func main() {
 	ast.BinClauses(&p)
 
 	// Output Verilog code.
-	ast.WriteVerilog(out, &p)
+	if p.Verbose {
+		dir, err := filepath.Abs(p.WorkDir)
+		if err != nil {
+			notify.Fatal(err)
+		}
+		VerbosePrintf(&p, "Storing intermediate files in %s", dir)
+		VerbosePrintf(&p, "Writing Verilog code to %s", vName)
+	}
+	ast.WriteVerilog(vf, &p)
+
+	// Optionally remove the working directory.
+	if p.DeleteWorkDir {
+		err = os.RemoveAll(p.WorkDir)
+		if err != nil {
+			notify.Fatal(err)
+		}
+	}
 }

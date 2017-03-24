@@ -8,6 +8,7 @@ GO_SOURCES = \
 	qa-prolog.go \
 	parser.go \
 	preproc.go \
+	run.go \
 	verilog.go \
 	type-inf.go \
 	astnodetype_string.go
