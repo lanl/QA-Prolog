@@ -88,18 +88,6 @@ func main() {
 		r = f
 	}
 
-	// Open the Verilog output file.
-	oName := filepath.Base(p.InFileName)
-	oName = oName[:len(oName)-len(filepath.Ext(oName))]
-	p.OutFileBase = oName
-	CreateWorkDir(&p)
-	vName := p.OutFileBase + ".v"
-	vf, err := os.Create(path.Join(p.WorkDir, vName))
-	if err != nil {
-		notify.Fatal(err)
-	}
-	defer vf.Close()
-
 	// Parse the input file into an AST.
 	VerbosePrintf(&p, "Parsing %s as Prolog code", p.InFileName)
 	a, err := ParseReader(p.InFileName, r)
@@ -114,16 +102,30 @@ func main() {
 	ast.AdjustIntBits(&p)
 	ast.BinClauses(&p)
 
-	// Output Verilog code.
-	if p.Verbose {
-		dir, err := filepath.Abs(p.WorkDir)
-		if err != nil {
-			notify.Fatal(err)
-		}
-		VerbosePrintf(&p, "Storing intermediate files in %s", dir)
-		VerbosePrintf(&p, "Writing Verilog code to %s", vName)
+	// Create a working directory and switch to it.
+	CreateWorkDir(&p)
+	err = os.Chdir(p.WorkDir)
+	if err != nil {
+		notify.Fatal(err)
 	}
+
+	// Output Verilog code.
+	oName := filepath.Base(p.InFileName)
+	oName = oName[:len(oName)-len(filepath.Ext(oName))]
+	p.OutFileBase = oName
+	vName := p.OutFileBase + ".v"
+	vf, err := os.Create(vName)
+	if err != nil {
+		notify.Fatal(err)
+	}
+	VerbosePrintf(&p, "Writing Verilog code to %s", vName)
 	ast.WriteVerilog(vf, &p)
+	vf.Close()
+
+	// Compile the Verilog code to EDIF.
+	CreateYosysScript(&p)
+	RunCommand(&p, "yosys", "-q", p.OutFileBase+".v", p.OutFileBase+".ys",
+		"-b", "edif", "-o", p.OutFileBase+".edif")
 
 	// Optionally remove the working directory.
 	if p.DeleteWorkDir {
