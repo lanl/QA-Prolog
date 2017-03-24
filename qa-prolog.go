@@ -118,10 +118,15 @@ func main() {
 	ast.WriteVerilog(vf, &p)
 	vf.Close()
 
-	// Compile the Verilog code to EDIF.
+	// Compile the Verilog code to an EDIF netlist.
 	CreateYosysScript(&p)
+	VerbosePrintf(&p, "Converting Verilog code to an EDIF netlist")
 	RunCommand(&p, "yosys", "-q", p.OutFileBase+".v", p.OutFileBase+".ys",
 		"-b", "edif", "-o", p.OutFileBase+".edif")
+
+	// Compile the EDIF netlist to QMASM code.
+	VerbosePrintf(&p, "Converting the EDIF netlist to QMASM code")
+	RunCommand(&p, "edif2qmasm", "-o", p.OutFileBase+".qmasm", p.OutFileBase+".edif")
 
 	// Optionally remove the working directory.
 	if p.DeleteWorkDir {
