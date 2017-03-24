@@ -90,7 +90,7 @@ func (a *ASTNode) toVerilogExpr(p2v map[string]string) string {
 		return a.Text
 
 	case AtomType:
-		return a.Value.(string)
+		return "`" + a.Value.(string)
 
 	case VariableType:
 		v, ok := p2v[a.Value.(string)]
@@ -183,7 +183,7 @@ func (a *ASTNode) toVerilogExpr(p2v map[string]string) string {
 				sfx := generateSuffix()
 				arity := len(a.Children) - 1
 				cs = append(cs, fmt.Sprintf("\\%s/%d \\%s_%s/%d",
-					vStr, arity, vStr, sfx, arity))
+					vStr[1:], arity, vStr[1:], sfx, arity)) // Strip leading "`" from vStr.
 			case 1:
 				cs = append(cs, " (")
 				cs = append(cs, c.toVerilogExpr(p2v))
