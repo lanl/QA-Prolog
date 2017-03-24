@@ -19,9 +19,7 @@ func CreateWorkDir(p *Parameters) {
 	if p.Verbose {
 		defer func() {
 			dir, err := filepath.Abs(p.WorkDir)
-			if err != nil {
-				notify.Fatal(err)
-			}
+			CheckError(err)
 			VerbosePrintf(p, "Storing intermediate files in %s", dir)
 		}()
 	}
@@ -29,18 +27,14 @@ func CreateWorkDir(p *Parameters) {
 	// If the user specified a directory, create it if necessary and return.
 	if p.WorkDir != "" {
 		err := os.MkdirAll(p.WorkDir, 0777)
-		if err != nil {
-			notify.Fatal(err)
-		}
+		CheckError(err)
 		p.DeleteWorkDir = false
 		return
 	}
 
 	// If the user did not specify a directory, create a random one.
 	nm, err := ioutil.TempDir("", "qap-")
-	if err != nil {
-		notify.Fatal(err)
-	}
+	CheckError(err)
 	p.WorkDir = nm
 	p.DeleteWorkDir = true
 }
@@ -51,9 +45,7 @@ func CreateYosysScript(p *Parameters) {
 	yName := p.OutFileBase + ".ys"
 	VerbosePrintf(p, "Writing a Yosys synthesis script to %s", yName)
 	ys, err := os.Create(filepath.Join(p.WorkDir, yName))
-	if err != nil {
-		notify.Fatal(err)
-	}
+	CheckError(err)
 
 	// Write some boilerplate text to it.
 	fmt.Fprintln(ys, "### Design synthesis")
@@ -86,7 +78,5 @@ func RunCommand(p *Parameters, name string, arg ...string) {
 	cmd.Stderr = os.Stderr
 	VerbosePrintf(p, "Executing %s %s", name, strings.Join(arg, " "))
 	err := cmd.Run()
-	if err != nil {
-		notify.Fatal(err)
-	}
+	CheckError(err)
 }

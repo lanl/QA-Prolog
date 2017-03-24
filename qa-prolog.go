@@ -10,11 +10,17 @@ import (
 	"log"
 	"os"
 	"path"
-	"path/filepath"
 	"strings"
 )
 
 var notify *log.Logger // Help notify the user of warnings and errors.
+
+// CheckError aborts with an error message if an error value is non-nil.
+func CheckError(err error) {
+	if err != nil {
+		notify.Fatal(err)
+	}
+}
 
 // BaseName returns a file path with the directory and extension removed.
 func BaseName(filename string) string {
@@ -81,9 +87,7 @@ func main() {
 	var r io.Reader = os.Stdin
 	if flag.NArg() > 0 {
 		f, err := os.Open(p.InFileName)
-		if err != nil {
-			notify.Fatal(err)
-		}
+		CheckError(err)
 		defer f.Close()
 		r = f
 	}
@@ -91,9 +95,7 @@ func main() {
 	// Parse the input file into an AST.
 	VerbosePrintf(&p, "Parsing %s as Prolog code", p.InFileName)
 	a, err := ParseReader(p.InFileName, r)
-	if err != nil {
-		notify.Fatal(err)
-	}
+	CheckError(err)
 	ast := a.(*ASTNode)
 	ast.RejectUnimplemented(&p)
 
@@ -105,19 +107,13 @@ func main() {
 	// Create a working directory and switch to it.
 	CreateWorkDir(&p)
 	err = os.Chdir(p.WorkDir)
-	if err != nil {
-		notify.Fatal(err)
-	}
+	CheckError(err)
 
 	// Output Verilog code.
-	oName := filepath.Base(p.InFileName)
-	oName = oName[:len(oName)-len(filepath.Ext(oName))]
-	p.OutFileBase = oName
+	p.OutFileBase = BaseName(p.InFileName)
 	vName := p.OutFileBase + ".v"
 	vf, err := os.Create(vName)
-	if err != nil {
-		notify.Fatal(err)
-	}
+	CheckError(err)
 	VerbosePrintf(&p, "Writing Verilog code to %s", vName)
 	ast.WriteVerilog(vf, &p)
 	vf.Close()
@@ -130,8 +126,6 @@ func main() {
 	// Optionally remove the working directory.
 	if p.DeleteWorkDir {
 		err = os.RemoveAll(p.WorkDir)
-		if err != nil {
-			notify.Fatal(err)
-		}
+		CheckError(err)
 	}
 }

@@ -304,9 +304,7 @@ func (a *ASTNode) findClauseTypes(nm2tys map[string]ArgTypes) TypeInfo {
 	if oldTys, ok := nm2tys[cl]; ok {
 		var err error
 		argTypes, err = MergeArgTypes(oldTys, argTypes)
-		if err != nil {
-			notify.Fatalf("%v (%s)", err, cl)
-		}
+		CheckError(err)
 	}
 
 	// Assign the same type to every instance of a variable name.
@@ -425,9 +423,7 @@ func (a *ASTNode) findVariableTypes(nm2tys map[string]ArgTypes) TypeInfo {
 			new_tm[k] = ty
 		}
 		tm, err = MergeTypes(tm, new_tm)
-		if err != nil {
-			notify.Fatalf("%v (%v)", err, c.Value)
-		}
+		CheckError(err)
 	}
 
 	// Figure out what to do based on the types of the clause's children.
@@ -452,9 +448,7 @@ func (a *ASTNode) findVariableTypes(nm2tys map[string]ArgTypes) TypeInfo {
 				new_tm[p.Children[i+1].Value.(string)] = ty
 			}
 			tm, err = MergeTypes(tm, new_tm)
-			if err != nil {
-				notify.Fatalf("%v in clause %v", err, a.Value)
-			}
+			CheckError(err)
 
 		default:
 			notify.Fatalf("Internal error: findVariableTypes doesn't recognize %v", c.Type)
