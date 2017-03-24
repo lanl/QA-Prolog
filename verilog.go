@@ -237,14 +237,20 @@ func (a *ASTNode) writeClauseGroupHeader(w io.Writer, p *Parameters, nm string, 
 	// Write the module prototype.
 	_, vArgs := cs[0].args()
 	rawName := strings.Split(nm, "/")[0]
-	for i, ty := range tys {
-		if i == 0 {
-			fmt.Fprintf(w, "// Define %s(%v", rawName, ty)
-		} else {
-			fmt.Fprintf(w, ", %v", ty)
+	if len(tys) == 0 {
+		// No arguments (rare)
+		fmt.Fprintf(w, "// Define %s.\n", rawName)
+	} else {
+		// At least one argument (common)
+		for i, ty := range tys {
+			if i == 0 {
+				fmt.Fprintf(w, "// Define %s(%v", rawName, ty)
+			} else {
+				fmt.Fprintf(w, ", %v", ty)
+			}
 		}
+		fmt.Fprintln(w, ").")
 	}
-	fmt.Fprintln(w, ").")
 	fmt.Fprintf(w, "module \\%s (", nm)
 	for i, a := range vArgs {
 		if i > 0 {
@@ -252,7 +258,11 @@ func (a *ASTNode) writeClauseGroupHeader(w io.Writer, p *Parameters, nm string, 
 		}
 		fmt.Fprint(w, a)
 	}
-	fmt.Fprintln(w, ", Valid);")
+	if len(vArgs) > 0 {
+		fmt.Fprintln(w, ", Valid);")
+	} else {
+		fmt.Fprintln(w, "Valid);")
+	}
 
 	// Write the module inputs.
 	for i, a := range vArgs {
