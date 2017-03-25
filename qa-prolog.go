@@ -39,6 +39,7 @@ type Parameters struct {
 	WorkDir    string // Directory for holding intermediate files
 	IntBits    uint   // Number of bits to use for each program integer
 	Verbose    bool   // Whether to output verbose execution information
+	Query      string // Query to apply to the program
 
 	// Computed values
 	SymToInt      map[string]int        // Map from a symbol to an integer
@@ -69,6 +70,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [<options>] [<infile.pl>]\n\n", p.ProgName)
 		flag.PrintDefaults()
 	}
+	flag.StringVar(&p.Query, "query", "", "Prolog query to apply to the program")
 	flag.UintVar(&p.IntBits, "int-bits", 0, "minimum integer width in bits")
 	flag.StringVar(&p.WorkDir, "work-dir", "", "directory for storing intermediate files (default: "+path.Join(os.TempDir(), "qap-*")+")")
 	flag.BoolVar(&p.Verbose, "verbose", false, "output informational messages during execution")
@@ -95,14 +97,26 @@ func main() {
 		r = f
 	}
 
+	// If a query was specified, append it to the input file.
+	if p.Query != "" {
+		q := "?- " + p.Query
+		if !strings.HasSuffix(q, ".") {
+			q += "."
+		}
+		r = io.MultiReader(r, strings.NewReader(q))
+	}
+
 	// Parse the input file into an AST.
 	VerbosePrintf(&p, "Parsing %s as Prolog code", p.InFileName)
 	a, err := ParseReader(p.InFileName, r)
 	CheckError(err)
 	ast := a.(*ASTNode)
-	ast.RejectUnimplemented(&p)
 
 	// Preprocess the AST.
+	if len(ast.FindByType(QueryType)) == 0 {
+		notify.Fatal("A query must be specified")
+	}
+	ast.RejectUnimplemented(&p)
 	ast.StoreAtomNames(&p)
 	ast.AdjustIntBits(&p)
 	ast.BinClauses(&p)
