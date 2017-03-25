@@ -48,7 +48,7 @@ func (a *ASTNode) FindByType(t ASTNodeType) []*ASTNode {
 // in an AST (except predicate names) and integers.
 func (a *ASTNode) StoreAtomNames(p *Parameters) {
 	// Construct a map from integers to symbols.
-	nmSet := make(map[string]struct{})
+	nmSet := make(map[string]Empty)
 	a.uniqueAtomNames(nmSet, false)
 	p.IntToSym = make([]string, 0, len(nmSet))
 	for nm := range nmSet {
@@ -69,14 +69,14 @@ func (a *ASTNode) StoreAtomNames(p *Parameters) {
 
 // uniqueAtomNames constructs a set of all atoms named in an AST except
 // predicate names.  It performs most of the work for AtomNames.
-func (a *ASTNode) uniqueAtomNames(names map[string]struct{}, skip1 bool) {
+func (a *ASTNode) uniqueAtomNames(names map[string]Empty, skip1 bool) {
 	// Process the current AST node.
 	if a.Type == AtomType {
 		nm, ok := a.Value.(string)
 		if !ok {
 			notify.Fatalf("Internal error parsing %#v", *a)
 		}
-		names[nm] = struct{}{}
+		names[nm] = Empty{}
 	}
 
 	// Recursively process the current node's children.  If the current

@@ -15,6 +15,9 @@ import (
 
 var notify *log.Logger // Help notify the user of warnings and errors.
 
+// Empty is used to treat maps as sets.
+type Empty struct{}
+
 // CheckError aborts with an error message if an error value is non-nil.
 func CheckError(err error) {
 	if err != nil {

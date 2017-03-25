@@ -107,7 +107,7 @@ func (a *ASTNode) clauseNames() map[string][]*ASTNode {
 
 // ClauseDependencies maps a clause name to the names of all clauses that it
 // depends on.
-type ClauseDependencies map[string]map[string]struct{}
+type ClauseDependencies map[string]map[string]Empty
 
 // findClauseDependencies walks an AST starting from a clause and reports its
 // immediate dependencies.
@@ -130,9 +130,9 @@ func (a *ASTNode) findClauseDependencies() ClauseDependencies {
 			// We have a dependency.  Store it.
 			chName := fmt.Sprintf("%s/%d", c.Children[0].Value.(string), len(c.Children)-1)
 			if _, ok := deps[clName]; !ok {
-				deps[clName] = make(map[string]struct{})
+				deps[clName] = make(map[string]Empty)
 			}
-			deps[clName][chName] = struct{}{}
+			deps[clName][chName] = Empty{}
 			return
 		}
 		for _, ch := range c.Children {
@@ -151,13 +151,13 @@ func (a *ASTNode) findClauseDependencies() ClauseDependencies {
 func (d ClauseDependencies) findRoots() []string {
 	// We don't currently support recursive functions.  Search for and
 	// reject recursion.
-	seen := make(map[string]struct{}, len(d))
+	seen := make(map[string]Empty, len(d))
 	var rejRec func(s string)
 	rejRec = func(s string) {
 		if _, found := seen[s]; found {
 			notify.Fatalf("Recursion is not currently supported (%s)", s)
 		}
-		seen[s] = struct{}{}
+		seen[s] = Empty{}
 		for c := range d[s] {
 			rejRec(c)
 		}
@@ -165,9 +165,9 @@ func (d ClauseDependencies) findRoots() []string {
 
 	// Start with every node that depends on another node as a potential
 	// root.
-	roots := make(map[string]struct{}, len(d)*2)
+	roots := make(map[string]Empty, len(d)*2)
 	for r := range d {
-		roots[r] = struct{}{}
+		roots[r] = Empty{}
 	}
 
 	// Delete every node that another node depends upon.
@@ -192,7 +192,7 @@ func (a *ASTNode) orderedClauses(nm2cls map[string][]*ASTNode) []*ASTNode {
 	var deps ClauseDependencies = make(ClauseDependencies)
 	for _, cls := range nm2cls {
 		for _, cl := range cls {
-			deps[cl.Value.(string)] = make(map[string]struct{}, 0)
+			deps[cl.Value.(string)] = make(map[string]Empty, 0)
 		}
 	}
 	for _, cls := range nm2cls {
@@ -205,7 +205,7 @@ func (a *ASTNode) orderedClauses(nm2cls map[string][]*ASTNode) []*ASTNode {
 				}
 				for nm := range to2 {
 					// Subsequent times we see from
-					deps[from][nm] = struct{}{}
+					deps[from][nm] = Empty{}
 				}
 			}
 		}
@@ -213,14 +213,14 @@ func (a *ASTNode) orderedClauses(nm2cls map[string][]*ASTNode) []*ASTNode {
 
 	// Find a partial ordering of the dependency graph.
 	roots := deps.findRoots()
-	nodesSeen := make(map[string]struct{}, len(roots)*2)
+	nodesSeen := make(map[string]Empty, len(roots)*2)
 	ordNames := make([]string, 0, len(roots)*2)
 	var makeOrder func(from string)
 	makeOrder = func(nm string) {
 		if _, seen := nodesSeen[nm]; seen {
 			return
 		}
-		nodesSeen[nm] = struct{}{}
+		nodesSeen[nm] = Empty{}
 		for c := range deps[nm] {
 			makeOrder(c)
 		}
@@ -392,11 +392,11 @@ func (a *ASTNode) findExprType() VarType {
 
 // When applied to any AST node, allVariables returns a set of all variables
 // named in that node.
-func (a *ASTNode) allVariables() map[string]struct{} {
-	var m map[string]struct{}
+func (a *ASTNode) allVariables() map[string]Empty {
+	var m map[string]Empty
 	if a.Type == VariableType {
-		m = make(map[string]struct{})
-		m[a.Value.(string)] = struct{}{}
+		m = make(map[string]Empty)
+		m[a.Value.(string)] = Empty{}
 		return m
 	}
 	for _, c := range a.Children {
@@ -407,7 +407,7 @@ func (a *ASTNode) allVariables() map[string]struct{} {
 		} else {
 			// Merge the remaining children's variable lists.
 			for v := range mm {
-				m[v] = struct{}{}
+				m[v] = Empty{}
 			}
 		}
 	}

@@ -135,20 +135,47 @@ Program <- Skip cl:ClauseList Skip q:Query Skip '.' Skip EOF {
 
 // Return an AST node of type QueryType.
 Query <- "?-" Skip ps:PredicateList {
+	// Acquire a list of all variables that appear in the query.
+	vSet := make(map[string]Empty)
+	for _, v := range ps.(*ASTNode).FindByType(VariableType) {
+		vSet[v.Value.(string)] = Empty{}
+	}
+	vList := make([]string, 0, len(vSet))
+	for v := range vSet {
+		vList = append(vList, v)
+	}
+	sort.Strings(vList)
+
 	// Insert a head predicate so we can process the query as if it were a
 	// clause.
-	atom := &ASTNode{
+	pKids := make([]*ASTNode, 0, len(vList)+1)
+	pKids = append(pKids, &ASTNode{
 		Type:  AtomType,
 		Value: "query",
 		Text:  "query",
+	})
+	for _, v := range vList {
+		vr := &ASTNode{
+			Type:  VariableType,
+			Value: v,
+			Text:  v,
+		}
+		trm := &ASTNode{
+			Type:     TermType,
+			Value:    v,
+			Text:     v,
+			Children: []*ASTNode{vr},
+		}
+		pKids = append(pKids, trm)
 	}
 	hd := &ASTNode{
 		Type:     PredicateType,
 		Value:    "query",
 		Text:     "query",
-		Children: []*ASTNode{atom},
+		Children: pKids,
 	}
-	return c.ConstructList(QueryType, nil, hd, ps), nil
+	name := fmt.Sprintf("query/%d", len(vList))
+	return c.ConstructList(QueryType, name, hd, ps), nil
 }
 
 // Return an AST node of type ClauseListType.
