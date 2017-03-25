@@ -23,18 +23,19 @@ func generateSuffix() string {
 
 // writeSymbols defines all of an AST's symbols as Verilog constants.
 func (a *ASTNode) writeSymbols(w io.Writer, p *Parameters) {
-	// Determine the minimum number of decimal digits needed to represent
-	// all symbol values.
-	digs := 0
-	for n := len(p.IntToSym) - 1; n > 0; n /= 10 {
-		digs++
+	// Determine the minimum number of characters needed to represent all
+	// symbol names.
+	nSymChars := 1
+	for _, s := range p.IntToSym {
+		if len(s) > nSymChars {
+			nSymChars = len(s)
+		}
 	}
 
 	// Output nicely formatted symbol definitions.
-	// TODO: Correct Verilog syntax once I regain Internet access.
 	fmt.Fprintln(w, "// Define all of the symbols used in this program.")
 	for i, s := range p.IntToSym {
-		fmt.Fprintf(w, "`define %-*s %*d\n", p.SymBits, s, digs, i)
+		fmt.Fprintf(w, "`define %-*s %d'd%d\n", nSymChars, s, p.SymBits, i)
 	}
 }
 
@@ -84,10 +85,10 @@ var prologToVerilogRel map[string]string = map[string]string{
 
 // toVerilogExpr recursively converts an AST, starting from a clause's body
 // predicate, to an expression.
-func (a *ASTNode) toVerilogExpr(p2v map[string]string) string {
+func (a *ASTNode) toVerilogExpr(p *Parameters, p2v map[string]string) string {
 	switch a.Type {
 	case NumeralType:
-		return a.Text
+		return fmt.Sprintf("%d'd%s", p.IntBits, a.Text)
 
 	case AtomType:
 		return "`" + a.Value.(string)
@@ -128,7 +129,7 @@ func (a *ASTNode) toVerilogExpr(p2v map[string]string) string {
 		return v
 
 	case PrimaryExprType:
-		c := a.Children[0].toVerilogExpr(p2v)
+		c := a.Children[0].toVerilogExpr(p, p2v)
 		if a.Value.(string) == "()" {
 			return "(" + c + ")"
 		} else {
@@ -137,59 +138,59 @@ func (a *ASTNode) toVerilogExpr(p2v map[string]string) string {
 
 	case UnaryExprType:
 		if len(a.Children) == 1 {
-			return a.Children[0].toVerilogExpr(p2v)
+			return a.Children[0].toVerilogExpr(p, p2v)
 		} else {
-			return a.Children[0].toVerilogExpr(p2v) + a.Children[1].toVerilogExpr(p2v)
+			return a.Children[0].toVerilogExpr(p, p2v) + a.Children[1].toVerilogExpr(p, p2v)
 		}
 
 	case MultiplicativeExprType:
 		if len(a.Children) == 1 {
-			return a.Children[0].toVerilogExpr(p2v)
+			return a.Children[0].toVerilogExpr(p, p2v)
 		} else {
-			c1 := a.Children[0].toVerilogExpr(p2v)
-			v := a.Children[1].toVerilogExpr(p2v)
-			c2 := a.Children[2].toVerilogExpr(p2v)
+			c1 := a.Children[0].toVerilogExpr(p, p2v)
+			v := a.Children[1].toVerilogExpr(p, p2v)
+			c2 := a.Children[2].toVerilogExpr(p, p2v)
 			return c1 + v + c2
 		}
 
 	case AdditiveExprType:
 		if len(a.Children) == 1 {
-			return a.Children[0].toVerilogExpr(p2v)
+			return a.Children[0].toVerilogExpr(p, p2v)
 		} else {
-			c1 := a.Children[0].toVerilogExpr(p2v)
-			v := a.Children[1].toVerilogExpr(p2v)
-			c2 := a.Children[2].toVerilogExpr(p2v)
+			c1 := a.Children[0].toVerilogExpr(p, p2v)
+			v := a.Children[1].toVerilogExpr(p, p2v)
+			c2 := a.Children[2].toVerilogExpr(p, p2v)
 			return c1 + " " + v + " " + c2
 		}
 
 	case RelationType:
-		c1 := a.Children[0].toVerilogExpr(p2v)
-		v := a.Children[1].toVerilogExpr(p2v)
-		c2 := a.Children[2].toVerilogExpr(p2v)
+		c1 := a.Children[0].toVerilogExpr(p, p2v)
+		v := a.Children[1].toVerilogExpr(p, p2v)
+		c2 := a.Children[2].toVerilogExpr(p, p2v)
 		return c1 + " " + v + " " + c2
 
 	case TermType:
-		return a.Children[0].toVerilogExpr(p2v)
+		return a.Children[0].toVerilogExpr(p, p2v)
 
 	case PredicateType:
 		if len(a.Children) == 1 {
-			return a.Children[0].toVerilogExpr(p2v)
+			return a.Children[0].toVerilogExpr(p, p2v)
 		}
 		cs := make([]string, 0, len(a.Children)*2)
 		for i, c := range a.Children {
 			switch i {
 			case 0:
-				vStr := c.toVerilogExpr(p2v)
+				vStr := c.toVerilogExpr(p, p2v)
 				sfx := generateSuffix()
 				arity := len(a.Children) - 1
 				cs = append(cs, fmt.Sprintf("\\%s/%d \\%s_%s/%d",
 					vStr[1:], arity, vStr[1:], sfx, arity)) // Strip leading "`" from vStr.
 			case 1:
 				cs = append(cs, " (")
-				cs = append(cs, c.toVerilogExpr(p2v))
+				cs = append(cs, c.toVerilogExpr(p, p2v))
 			default:
 				cs = append(cs, ", ")
-				cs = append(cs, c.toVerilogExpr(p2v))
+				cs = append(cs, c.toVerilogExpr(p, p2v))
 			}
 		}
 		cs = append(cs, ", %s)")
@@ -202,7 +203,7 @@ func (a *ASTNode) toVerilogExpr(p2v map[string]string) string {
 }
 
 // process converts each predicate in a clause to an assignment to a valid bit.
-func (c *ASTNode) process(p2v map[string]string) []string {
+func (c *ASTNode) process(p *Parameters, p2v map[string]string) []string {
 	// Assign validity based on matches on any specified input symbols or
 	// numbers.
 	valid := make([]string, 0, len(c.Children))
@@ -215,7 +216,7 @@ func (c *ASTNode) process(p2v map[string]string) []string {
 			valid = append(valid, fmt.Sprintf("%s == `%s", vArgs[i], a))
 		case unicode.IsDigit(r0):
 			// Numeral
-			valid = append(valid, fmt.Sprintf("%s == %s", vArgs[i], a))
+			valid = append(valid, fmt.Sprintf("%s == %d'd%s", vArgs[i], p.IntBits, a))
 		case unicode.IsUpper(r0), r0 == '_':
 			// Variable
 
@@ -225,8 +226,8 @@ func (c *ASTNode) process(p2v map[string]string) []string {
 	}
 
 	// Assign validity based on each predicate in the clause's body.
-	for _, p := range c.Children[1:] {
-		valid = append(valid, p.toVerilogExpr(p2v))
+	for _, pred := range c.Children[1:] {
+		valid = append(valid, pred.toVerilogExpr(p, p2v))
 	}
 	return valid
 }
@@ -318,7 +319,7 @@ func (c *ASTNode) writeClauseBody(w io.Writer, p *Parameters, nm string,
 
 	// Convert the clause body to a list of Boolean Verilog
 	// expressions.
-	valid = append(valid, c.process(p2v)...)
+	valid = append(valid, c.process(p, p2v)...)
 	if len(valid) == 0 {
 		// Although not normally used in practice, handle
 		// useless clauses that accept all inputs (e.g.,
