@@ -262,7 +262,11 @@ func (a *ASTNode) writeClauseGroupHeader(w io.Writer, p *Parameters, nm string, 
 		}
 		fmt.Fprintln(w, ").")
 	}
-	fmt.Fprintf(w, "module \\%s (", nm)
+	if rawName == "Query" {
+		fmt.Fprint(w, "module Query (") // Exclude the arity from the top-level query.
+	} else {
+		fmt.Fprintf(w, "module \\%s (", nm)
+	}
 	for i, a := range vArgs {
 		if i > 0 {
 			fmt.Fprint(w, ", ")
