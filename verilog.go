@@ -39,7 +39,13 @@ func (a *ASTNode) writeSymbols(w io.Writer, p *Parameters) {
 	}
 }
 
-// args retrieves a clause's arguments in both Prolog and Verilog format.
+// args retrieves a clause's or a query's arguments in both Prolog and Verilog
+// format.  In the former case, arguments are renamed to A, B, C, etc.  This is
+// needed to handle both non-variable arguments (i.e., numerals or atoms) and
+// repeated variable arguments (as in "same(X, X)").  In the latter case, the
+// original names are preserved.  This is needed to report results in terms of
+// the program-specified variables names (and it is known a priori that clauses
+// contain only unique variable names in their argument lists).
 func (c *ASTNode) args() (pArgs, vArgs []string) {
 	pred := c.Children[0]
 	terms := pred.Children[1:]
@@ -47,7 +53,11 @@ func (c *ASTNode) args() (pArgs, vArgs []string) {
 	vArgs = make([]string, len(terms)) // Verilog arguments (variables)
 	for i, a := range terms {
 		pArgs[i] = a.Text
-		vArgs[i] = numToVerVar(i)
+		if c.Type == ClauseType {
+			vArgs[i] = numToVerVar(i)
+		} else {
+			vArgs[i] = pArgs[i]
+		}
 	}
 	return
 }

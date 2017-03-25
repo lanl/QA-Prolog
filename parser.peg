@@ -151,8 +151,8 @@ Query <- "?-" Skip ps:PredicateList {
 	pKids := make([]*ASTNode, 0, len(vList)+1)
 	pKids = append(pKids, &ASTNode{
 		Type:  AtomType,
-		Value: "query",
-		Text:  "query",
+		Value: "Query",
+		Text:  "Query",
 	})
 	for _, v := range vList {
 		vr := &ASTNode{
@@ -170,11 +170,11 @@ Query <- "?-" Skip ps:PredicateList {
 	}
 	hd := &ASTNode{
 		Type:     PredicateType,
-		Value:    "query",
-		Text:     "query",
+		Value:    "Query",
+		Text:     "Query",
 		Children: pKids,
 	}
-	name := fmt.Sprintf("query/%d", len(vList))
+	name := fmt.Sprintf("Query/%d", len(vList))
 	return c.ConstructList(QueryType, name, hd, ps), nil
 }
 
