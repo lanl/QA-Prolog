@@ -80,13 +80,13 @@ func (a *ASTNode) uniqueAtomNames(names map[string]struct{}, skip1 bool) {
 	}
 
 	// Recursively process the current node's children.  If the current
-	// node is a clause, skip its first child's first child (the name of
-	// the clause itself).
+	// node is a clause or a query, skip its first child's first child (the
+	// name of the clause/query itself).
 	kids := a.Children
 	if skip1 {
 		kids = kids[1:]
 	}
-	skip1 = a.Type == ClauseType
+	skip1 = (a.Type == ClauseType || a.Type == QueryType)
 	for _, aa := range kids {
 		aa.uniqueAtomNames(names, skip1)
 	}
@@ -134,7 +134,8 @@ func (a *ASTNode) AdjustIntBits(p *Parameters) {
 // being the corresponding lists of clauses.
 func (a *ASTNode) BinClauses(p *Parameters) {
 	bins := make(map[string][]*ASTNode, 8)
-	for _, cl := range a.FindByType(ClauseType) {
+	csAndQs := append(a.FindByType(ClauseType), a.FindByType(QueryType)...)
+	for _, cl := range csAndQs {
 		// Perform a lot of error-checking as we search for the clause
 		// name.
 		if len(cl.Children) == 0 {

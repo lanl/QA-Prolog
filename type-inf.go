@@ -87,7 +87,7 @@ func (a *ASTNode) clauseNames() map[string][]*ASTNode {
 	nm2node := make(map[string][]*ASTNode)
 	var walk func(c *ASTNode)
 	walk = func(c *ASTNode) {
-		if c.Type == ClauseType {
+		if c.Type == ClauseType || c.Type == QueryType {
 			name := c.Value.(string)
 			old, seen := nm2node[name]
 			if seen {

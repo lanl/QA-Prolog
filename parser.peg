@@ -122,15 +122,33 @@ func (c *current) PrepareRelation(e1, o, e2 interface{}) *ASTNode {
 
 }
 
-// For now, we define a Prolog program as a list of clauses.  Later, we'll
-// include queries as part of a program.
-Program <- Skip cl:ClauseList Skip EOF {
+// For now, we define a Prolog program as a list of clauses followed by an
+// optional query.
+Program <- Skip cl:ClauseList Skip q:Query Skip '.' Skip EOF {
+	// Append the query to the list of clauses.
+	prog := c.ConstructList(ProgramType, nil, cl, nil)
+	prog.Children = append(prog.Children, q.(*ASTNode))
+	return prog, nil
+} / Skip cl:ClauseList Skip EOF {
         return c.ConstructList(ProgramType, nil, cl, nil), nil
 }
 
 // Return an AST node of type QueryType.
-Query <- "?-" Skip p:PredicateList {
-        return c.ConstructList(QueryType, nil, p, nil), nil
+Query <- "?-" Skip ps:PredicateList {
+	// Insert a head predicate so we can process the query as if it were a
+	// clause.
+	atom := &ASTNode{
+		Type:  AtomType,
+		Value: "query",
+		Text:  "query",
+	}
+	hd := &ASTNode{
+		Type:     PredicateType,
+		Value:    "query",
+		Text:     "query",
+		Children: []*ASTNode{atom},
+	}
+	return c.ConstructList(QueryType, nil, hd, ps), nil
 }
 
 // Return an AST node of type ClauseListType.
