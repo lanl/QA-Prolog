@@ -121,6 +121,9 @@ func main() {
 	ast.AdjustIntBits(&p)
 	ast.BinClauses(&p)
 
+	// Perform type inference on the AST.
+	nm2tys, clVarTys := ast.PerformTypeInference()
+
 	// Create a working directory and switch to it.
 	CreateWorkDir(&p)
 	err = os.Chdir(p.WorkDir)
@@ -132,7 +135,7 @@ func main() {
 	vf, err := os.Create(vName)
 	CheckError(err)
 	VerbosePrintf(&p, "Writing Verilog code to %s", vName)
-	ast.WriteVerilog(vf, &p)
+	ast.WriteVerilog(vf, &p, nm2tys, clVarTys)
 	vf.Close()
 
 	// Compile the Verilog code to an EDIF netlist.
@@ -144,6 +147,9 @@ func main() {
 	// Compile the EDIF netlist to QMASM code.
 	VerbosePrintf(&p, "Converting the EDIF netlist to QMASM code")
 	RunCommand(&p, "edif2qmasm", "-o", p.OutFileBase+".qmasm", p.OutFileBase+".edif")
+
+	// Run the QMASM code and report the results.
+	ast.RunQMASM(&p, clVarTys)
 
 	// Optionally remove the working directory.
 	if p.DeleteWorkDir {

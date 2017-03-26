@@ -380,10 +380,8 @@ func (a *ASTNode) writeClauseGroup(w io.Writer, p *Parameters, nm string,
 }
 
 // WriteVerilog writes an entire (preprocessed) AST as Verilog code.
-func (a *ASTNode) WriteVerilog(w io.Writer, p *Parameters) {
-	// Perform type inference on the AST.
-	nm2tys, clVarTys := a.PerformTypeInference()
-
+func (a *ASTNode) WriteVerilog(w io.Writer, p *Parameters,
+	nm2tys map[string]ArgTypes, clVarTys map[*ASTNode]TypeInfo) {
 	// Output some header comments.
 	fmt.Fprintf(w, "// Verilog version of Prolog program %s\n", p.InFileName)
 	fmt.Fprintf(w, "// Conversion by %s, written by Scott Pakin <pakin@lanl.gov>\n", p.ProgName)
