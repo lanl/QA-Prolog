@@ -57,7 +57,7 @@ func CreateYosysScript(p *Parameters) {
 		p.OutFileBase, p.OutFileBase, p.OutFileBase)
 	fmt.Fprint(ys, `
 # Check design hierarchy.
-hierarchy -auto-top
+hierarchy -top Query
 
 # Translate processes.
 proc; opt
@@ -176,8 +176,8 @@ func (a *ASTNode) RunQMASM(p *Parameters, clVarTys map[*ASTNode]TypeInfo) {
 	CheckError(err)
 
 	// Construct a QMASM argument list.
-	args := make([]string, 0, 6)
-	args = append(args, "--run", "-O", "--verbose", "--values=ints")
+	args := make([]string, 0, 7)
+	args = append(args, "--run", "-O", "--verbose", "--values=ints", "--postproc=opt")
 	haveVar := false
 	for nm := range tys {
 		if unicode.IsUpper(rune(nm[0])) {

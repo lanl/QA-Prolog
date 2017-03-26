@@ -340,13 +340,26 @@ func (c *ASTNode) writeClauseBody(w io.Writer, p *Parameters, nm string,
 		// "stupid(A, B, C).").
 		valid = append(valid, "1'b1")
 	}
-	fmt.Fprintf(w, "  wire [%d:0] $v%d;\n", len(valid)-1, cNum+1)
-	for i, v := range valid {
-		vBit := fmt.Sprintf("$v%d[%d]", cNum+1, i)
+	if len(valid) == 1 {
+		// Single bit
+		fmt.Fprintf(w, "  wire $v%d;\n", cNum+1)
+		vBit := fmt.Sprintf("$v%d", cNum+1)
+		v := valid[0]
 		if strings.Contains(v, "%s") {
 			fmt.Fprintf(w, "  "+v+";\n", vBit)
 		} else {
 			fmt.Fprintf(w, "  assign %s = %s;\n", vBit, v)
+		}
+	} else {
+		// Multiple bits
+		fmt.Fprintf(w, "  wire [%d:0] $v%d;\n", len(valid)-1, cNum+1)
+		for i, v := range valid {
+			vBit := fmt.Sprintf("$v%d[%d]", cNum+1, i)
+			if strings.Contains(v, "%s") {
+				fmt.Fprintf(w, "  "+v+";\n", vBit)
+			} else {
+				fmt.Fprintf(w, "  assign %s = %s;\n", vBit, v)
+			}
 		}
 	}
 	return nVars
