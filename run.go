@@ -164,6 +164,33 @@ func (a *ASTNode) parseQMASMOutput(p *Parameters, haveVar bool, tys TypeInfo) {
 	CheckError(err)
 }
 
+// showTail is a helper function for RunQMASM that outputs the last non-blank
+// line of a file.
+func (a *ASTNode) showTail(fn string) error {
+	r, err := os.Open(fn)
+	if err != nil {
+		return err
+	}
+	rb := bufio.NewReader(r)
+	last := ""
+	for {
+		ln, err := rb.ReadString('\n')
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		if ln != "" {
+			last = ln
+		}
+	}
+	if last != "" {
+		fmt.Fprintln(os.Stderr, last)
+	}
+	return nil
+}
+
 // RunQMASM runs qmasm, parses the results, and outputs them.
 func (a *ASTNode) RunQMASM(p *Parameters, clVarTys map[*ASTNode]TypeInfo) {
 	// Find the type of each query argument.
@@ -198,8 +225,12 @@ func (a *ASTNode) RunQMASM(p *Parameters, clVarTys map[*ASTNode]TypeInfo) {
 	cmd.Stderr = out
 	VerbosePrintf(p, "Executing qmasm %s", strings.Join(args, " "))
 	err = cmd.Run()
-	CheckError(err)
 	out.Close()
+	if err != nil {
+		// Output the last line of the .out file before aborting.
+		_ = a.showTail(p.OutFileBase + ".out")
+		CheckError(err)
+	}
 
 	// Report QMASM's output in terms of the query variables.
 	a.parseQMASMOutput(p, haveVar, tys)
