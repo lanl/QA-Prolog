@@ -157,7 +157,7 @@ func (a *ASTNode) parseQMASMOutput(p *Parameters, haveVar bool, tys TypeInfo) {
 			fmt.Printf("%s = %s\n", nm, sym)
 
 		default:
-			notify.Printf("Internal error processing %q", strings.TrimSpace(ln))
+			// Ignore non-variables.
 		}
 	}
 	err = r.Close()

@@ -422,13 +422,34 @@ func (a *ASTNode) findVariableTypes(nm2tys map[string]ArgTypes) TypeInfo {
 	var err error
 	tm := make(TypeInfo, 1)
 	setAllChildren := func(c *ASTNode, ty VarType) {
+		// Assign type ty to all child variables.
 		vSet := c.allVariables()
 		new_tm := make(TypeInfo, len(vSet))
 		for k := range vSet {
 			new_tm[k] = ty
 		}
+
+		// Merge the types with what we already have, then check that
+		// the child variables do indeed all have the same type.  One
+		// case in which they might not is if ty is InfUnknown but the
+		// typemap tm already contains inconsistent types for two of
+		// the variables.
 		tm, err = MergeTypes(tm, new_tm)
 		CheckError(err)
+		kid1 := "???"
+		kidTy := InfUnknown
+		for k := range vSet {
+			switch {
+			case kidTy == InfUnknown:
+				// Initialize kid1 and kidTy.
+				kid1 = k
+				kidTy = tm[k]
+			case tm[k] == InfUnknown:
+				// InfUnknown matches everything.
+			case kidTy != tm[k]:
+				ParseError(c.Pos, "Variables %s and %s have incompatible types", kid1, k)
+			}
+		}
 	}
 
 	// Figure out what to do based on the types of the clause's children.
@@ -469,8 +490,13 @@ func (a *ASTNode) PerformTypeInference() (map[string]ArgTypes, map[*ASTNode]Type
 	nm2cls := a.clauseNames()
 	clauses := a.orderedClauses(nm2cls)
 
+	// Populate our mapping from clause name to argument types with a few
+	// built-in names.
+	nm2tys := make(map[string]ArgTypes, len(clauses)+2)
+	nm2tys["integer/1"] = ArgTypes{InfNumeral}
+	nm2tys["atom/1"] = ArgTypes{InfAtom}
+
 	// Perform type inference on each clause in turn.
-	nm2tys := make(map[string]ArgTypes, len(clauses))
 	clVarTys := make(map[*ASTNode]TypeInfo, len(clauses))
 	for _, cl := range clauses {
 		clVarTys[cl] = cl.findClauseTypes(nm2tys)
