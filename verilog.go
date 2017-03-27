@@ -183,9 +183,21 @@ func (a *ASTNode) toVerilogExpr(p *Parameters, p2v map[string]string) string {
 		return a.Children[0].toVerilogExpr(p, p2v)
 
 	case PredicateType:
+		// Handle predicate AST nodes that are really just wrappers for
+		// expressions.
 		if len(a.Children) == 1 {
 			return a.Children[0].toVerilogExpr(p, p2v)
 		}
+
+		// Ignore atom/1 and integer/1, which exist solely for the type
+		// system.
+		if len(a.Children) == 2 {
+			pName := a.Children[0].Value.(string)
+			if pName == "atom" || pName == "integer" {
+				return "1'b1"
+			}
+		}
+
 		cs := make([]string, 0, len(a.Children)*2)
 		for i, c := range a.Children {
 			switch i {
@@ -237,7 +249,10 @@ func (c *ASTNode) process(p *Parameters, p2v map[string]string) []string {
 
 	// Assign validity based on each predicate in the clause's body.
 	for _, pred := range c.Children[1:] {
-		valid = append(valid, pred.toVerilogExpr(p, p2v))
+		v := pred.toVerilogExpr(p, p2v)
+		if v != "1'b1" {
+			valid = append(valid, v)
+		}
 	}
 	return valid
 }
