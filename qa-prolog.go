@@ -34,12 +34,13 @@ func BaseName(filename string) string {
 // global values computed from the AST.
 type Parameters struct {
 	// Command-line parameters
-	ProgName   string // Name of this program
-	InFileName string // Name of the input file
-	WorkDir    string // Directory for holding intermediate files
-	IntBits    uint   // Number of bits to use for each program integer
-	Verbose    bool   // Whether to output verbose execution information
-	Query      string // Query to apply to the program
+	ProgName   string   // Name of this program
+	InFileName string   // Name of the input file
+	WorkDir    string   // Directory for holding intermediate files
+	IntBits    uint     // Number of bits to use for each program integer
+	Verbose    bool     // Whether to output verbose execution information
+	Query      string   // Query to apply to the program
+	QmasmArgs  []string // Additional qmasm command-line arguments
 
 	// Computed values
 	SymToInt      map[string]int        // Map from a symbol to an integer
@@ -75,12 +76,14 @@ func main() {
 	flag.StringVar(&p.WorkDir, "work-dir", "", "directory for storing intermediate files (default: "+path.Join(os.TempDir(), "qap-*")+")")
 	flag.BoolVar(&p.Verbose, "verbose", false, "output informational messages during execution")
 	flag.BoolVar(&p.Verbose, "v", false, "same as -verbose")
+	qmasmStr := flag.String("qmasm-args", "", "additional command-line arguments to pass to qmasm")
 	flag.Parse()
 	if flag.NArg() == 0 {
 		p.InFileName = "<stdin>"
 	} else {
 		p.InFileName = flag.Arg(0)
 	}
+	p.QmasmArgs = strings.Fields(*qmasmStr)
 	ParseError = func(pos position, format string, args ...interface{}) {
 		fmt.Fprintf(os.Stderr, "%s:%d:%d: ", p.InFileName, pos.line, pos.col)
 		fmt.Fprintf(os.Stderr, format, args...)

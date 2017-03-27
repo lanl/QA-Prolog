@@ -186,7 +186,7 @@ func (a *ASTNode) showTail(fn string) error {
 		}
 	}
 	if last != "" {
-		fmt.Fprintln(os.Stderr, last)
+		fmt.Fprint(os.Stderr, last)
 	}
 	return nil
 }
@@ -203,8 +203,9 @@ func (a *ASTNode) RunQMASM(p *Parameters, clVarTys map[*ASTNode]TypeInfo) {
 	CheckError(err)
 
 	// Construct a QMASM argument list.
-	args := make([]string, 0, 7)
-	args = append(args, "--run", "-O", "--verbose", "--values=ints", "--postproc=opt")
+	args := make([]string, 0, 4+len(p.QmasmArgs))
+	args = append(args, "--run", "--values=ints") // Mandatory arguments
+	args = append(args, p.QmasmArgs...)           // Additional, user-specified arguments
 	haveVar := false
 	for nm := range tys {
 		if unicode.IsUpper(rune(nm[0])) {
