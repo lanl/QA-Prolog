@@ -417,39 +417,31 @@ func (a *ASTNode) allVariables() map[string]Empty {
 // When applied to a clause node, findVariableTypes returns a mapping from
 // variable name to type.
 func (a *ASTNode) findVariableTypes(nm2tys map[string]ArgTypes) TypeInfo {
+	var err error
+	tm := make(TypeInfo, 1) // Type map to return
+	type ForceSame struct {
+		Vars   map[string]Empty // Set of variable names
+		Parent *ASTNode         // Parent that includes all of the variables
+	}
+	same := make([]ForceSame, 0, 16) // Sets of variables that must wind up with the same type
+
 	// Define a function that assigns the same type to all variables in all
 	// of our child nodes.
-	var err error
-	tm := make(TypeInfo, 1)
 	setAllChildren := func(c *ASTNode, ty VarType) {
-		// Assign type ty to all child variables.
+		// Assign the same type to all children.
 		vSet := c.allVariables()
 		new_tm := make(TypeInfo, len(vSet))
 		for k := range vSet {
 			new_tm[k] = ty
 		}
-
-		// Merge the types with what we already have, then check that
-		// the child variables do indeed all have the same type.  One
-		// case in which they might not is if ty is InfUnknown but the
-		// typemap tm already contains inconsistent types for two of
-		// the variables.
 		tm, err = MergeTypes(tm, new_tm)
-		CheckError(err)
-		kid1 := "???"
-		kidTy := InfUnknown
-		for k := range vSet {
-			switch {
-			case kidTy == InfUnknown:
-				// Initialize kid1 and kidTy.
-				kid1 = k
-				kidTy = tm[k]
-			case tm[k] == InfUnknown:
-				// InfUnknown matches everything.
-			case kidTy != tm[k]:
-				ParseError(c.Pos, "Variables %s and %s have incompatible types", kid1, k)
-			}
+
+		// If the type is InfUnknown, check the types once we know what
+		// they are.
+		if ty != InfUnknown {
+			return
 		}
+		same = append(same, ForceSame{Vars: vSet, Parent: c})
 	}
 
 	// Figure out what to do based on the types of the clause's children.
@@ -478,6 +470,22 @@ func (a *ASTNode) findVariableTypes(nm2tys map[string]ArgTypes) TypeInfo {
 
 		default:
 			notify.Fatalf("Internal error: findVariableTypes doesn't recognize %v", c.Type)
+		}
+	}
+
+	// Ensure we didn't later find that two free variables in a relation
+	// wound up with different types.
+	for _, s := range same {
+		k1 := "???"
+		ty := InfUnknown
+		for k := range s.Vars {
+			if ty == InfUnknown {
+				k1 = k
+				ty = tm[k]
+			}
+			if tm[k] != ty {
+				ParseError(s.Parent.Pos, "Type mismatch between variables %s and %s", k1, k)
+			}
 		}
 	}
 	return tm
