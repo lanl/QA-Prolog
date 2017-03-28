@@ -123,6 +123,7 @@ func main() {
 	ast.StoreAtomNames(&p)
 	ast.AdjustIntBits(&p)
 	ast.BinClauses(&p)
+	VerbosePrintf(&p, "Representing symbols with %d bit(s) and integers with %d bit(s)", p.SymBits, p.IntBits)
 
 	// Perform type inference on the AST.
 	nm2tys, clVarTys := ast.PerformTypeInference()
