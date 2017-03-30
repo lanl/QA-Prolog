@@ -222,7 +222,7 @@ Relation <- (e1:AdditiveExpr Skip o:RelationOperator Skip e2:AdditiveExpr) {
 }
 
 // A RelationOperator relates two numerical expressions.
-RelationOperator <- ("<=" / ">=" / "<" / ">" / "=" / "\\=") {
+RelationOperator <- ("=<" / ">=" / "<" / ">" / "=" / "\\=") {
         return c.ConstructList(RelationOpType, nil, nil, nil), nil
 }
 
