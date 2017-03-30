@@ -84,7 +84,7 @@ var prologToVerilogMult map[string]string = map[string]string{
 // prologToVerilogRel maps a Prolog relational operator to a Verilog relational
 // operator.
 var prologToVerilogRel map[string]string = map[string]string{
-	"<=":  "<=",
+	"=<":  "<=",
 	">=":  ">=",
 	"<":   "<",
 	">":   ">",
