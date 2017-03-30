@@ -417,7 +417,8 @@ func (a *ASTNode) WriteVerilog(w io.Writer, p *Parameters,
 // This program is intended to be passed to edif2qmasm, then to qmasm, and
 // finally run on a quantum annealer.
 //`)
-	fmt.Fprintf(w, "// Note: This program uses exclusively %d-bit unsigned integers.\n\n", p.IntBits)
+	fmt.Fprintf(w, "// Note: This program uses %d bit(s) for atoms and %d bit(s) for (unsigned)\n", p.SymBits, p.IntBits)
+	fmt.Fprintln(w, "// integers.\n")
 
 	// Define constants for all of our symbols.
 	a.writeSymbols(w, p)
