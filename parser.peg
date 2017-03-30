@@ -29,7 +29,7 @@ const (
         MultiplicativeOpType                      // Multiplicative operator (e.g., "*")
         AdditiveExprType                          // Additive expression (e.g., "7 - 5")
         AdditiveOpType                            // Additive operator (e.g., "+")
-        RelationOpType                            // Relation operator (e.g., "<=")
+        RelationOpType                            // Relation operator (e.g., "=<")
         RelationType                              // Relation (e.g., "happy(X) = Y" or "N < 10")
         PredicateType                             // Predicate (e.g., "likes(john, mary)")
         StructureType                             // Structure (e.g., "likes(john, mary)")
