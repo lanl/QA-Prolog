@@ -89,6 +89,7 @@ func (a *ASTNode) uniqueAtomNames(names map[string]Empty, skip1 bool) {
 	skip1 = (a.Type == ClauseType || a.Type == QueryType)
 	for _, aa := range kids {
 		aa.uniqueAtomNames(names, skip1)
+		skip1 = false
 	}
 }
 
