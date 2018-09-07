@@ -35,15 +35,15 @@ func (v VarType) String() string {
 // TypeInfo represents a mapping from a variable to its type.
 type TypeInfo map[string]VarType
 
-// Merge merges two type mappings.
+// MergeTypes merges two type mappings.
 func MergeTypes(t1, t2 TypeInfo) (TypeInfo, error) {
 	tm := make(TypeInfo, len(t1)+len(t2))
 
 	// Populate tm with the union of all variables in t1 and t2.
-	for k, _ := range t1 {
+	for k := range t1 {
 		tm[k] = InfUnknown
 	}
-	for k, _ := range t2 {
+	for k := range t2 {
 		tm[k] = InfUnknown
 	}
 
@@ -189,7 +189,7 @@ func (d ClauseDependencies) findRoots() []string {
 // dependency order.
 func (a *ASTNode) orderedClauses(nm2cls map[string][]*ASTNode) []*ASTNode {
 	// Build a complete set of dependencies for all clauses.
-	var deps ClauseDependencies = make(ClauseDependencies)
+	deps := make(ClauseDependencies)
 	for _, cls := range nm2cls {
 		for _, cl := range cls {
 			deps[cl.Value.(string)] = make(map[string]Empty, 0)
@@ -293,8 +293,8 @@ func (a *ASTNode) findClauseTypes(nm2tys map[string]ArgTypes) TypeInfo {
 	vTypes := a.findVariableTypes(nm2tys)
 	for i, ty := range argTypes {
 		if ty == InfUnknown {
-			if new_ty, ok := vTypes[argNames[i]]; ok {
-				argTypes[i] = new_ty
+			if newTy, ok := vTypes[argNames[i]]; ok {
+				argTypes[i] = newTy
 			}
 		}
 	}
@@ -430,11 +430,11 @@ func (a *ASTNode) findVariableTypes(nm2tys map[string]ArgTypes) TypeInfo {
 	setAllChildren := func(c *ASTNode, ty VarType) {
 		// Assign the same type to all children.
 		vSet := c.allVariables()
-		new_tm := make(TypeInfo, len(vSet))
+		newTm := make(TypeInfo, len(vSet))
 		for k := range vSet {
-			new_tm[k] = ty
+			newTm[k] = ty
 		}
-		tm, err = MergeTypes(tm, new_tm)
+		tm, err = MergeTypes(tm, newTm)
 
 		// If the type is InfUnknown, check the types once we know what
 		// they are.
@@ -461,11 +461,11 @@ func (a *ASTNode) findVariableTypes(nm2tys map[string]ArgTypes) TypeInfo {
 			if !ok {
 				notify.Fatalf("Internal error: Failed to find clause %s", name)
 			}
-			new_tm := make(TypeInfo, len(tys))
+			newTm := make(TypeInfo, len(tys))
 			for i, ty := range tys {
-				new_tm[p.Children[i+1].Value.(string)] = ty
+				newTm[p.Children[i+1].Value.(string)] = ty
 			}
-			tm, err = MergeTypes(tm, new_tm)
+			tm, err = MergeTypes(tm, newTm)
 			CheckError(err)
 
 		default:

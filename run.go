@@ -85,6 +85,56 @@ func RunCommand(p *Parameters, name string, arg ...string) {
 	CheckError(err)
 }
 
+// parseQMASMOutputLine is a helper function for parseQMASMOutput that parses a
+// single line of QMASM output and outputs it in a user-friendly format.
+func (a *ASTNode) parseQMASMOutputLine(p *Parameters, haveVar bool, tys TypeInfo, ln string) {
+	// Output a blank line between solutions.
+	if len(ln) > 10 && ln[:10] == "Solution #" {
+		fmt.Println("")
+		return
+	}
+
+	// Extract a query variable and decimal value if both are
+	// present.
+	fields := strings.Fields(ln)
+	if len(fields) != 3 {
+		return
+	}
+	if len(fields[0]) < 7 || fields[0][:6] != "Query." {
+		return
+	}
+	nm := fields[0][6:]
+	val, err := strconv.Atoi(fields[2])
+	CheckError(err)
+
+	// Output the variable and its value.
+	switch {
+	case nm == "Valid":
+		switch {
+		case haveVar:
+		case val == 0:
+			fmt.Println("false")
+		case val == 1:
+			fmt.Println("true")
+		}
+
+	case tys[nm] == InfNumeral:
+		// Output numeric values.
+		fmt.Printf("%s = %d\n", nm, val)
+
+	case tys[nm] == InfAtom:
+		// Output symbolic values.
+		sym := "[invalid]"
+		if val >= 0 && val < len(p.IntToSym) {
+			sym = p.IntToSym[val]
+		}
+		fmt.Printf("%s = %s\n", nm, sym)
+
+	default:
+		// Ignore non-variables.
+	}
+}
+
 // parseQMASMOutput is a helper function for RunQMASM that parses all of the
 // solutions and reports them in a user-friendly format.
 func (a *ASTNode) parseQMASMOutput(p *Parameters, haveVar bool, tys TypeInfo) {
@@ -113,52 +163,7 @@ func (a *ASTNode) parseQMASMOutput(p *Parameters, haveVar bool, tys TypeInfo) {
 			break
 		}
 		CheckError(err)
-
-		// Output a blank line between solutions.
-		if len(ln) > 10 && ln[:10] == "Solution #" {
-			fmt.Println("")
-			continue
-		}
-
-		// Extract a query variable and decimal value if both are
-		// present.
-		fields := strings.Fields(ln)
-		if len(fields) != 3 {
-			continue
-		}
-		if len(fields[0]) < 7 || fields[0][:6] != "Query." {
-			continue
-		}
-		nm := fields[0][6:]
-		val, err := strconv.Atoi(fields[2])
-		CheckError(err)
-
-		// Output the variable and its value.
-		switch {
-		case nm == "Valid":
-			switch {
-			case haveVar:
-			case val == 0:
-				fmt.Println("false")
-			case val == 1:
-				fmt.Println("true")
-			}
-
-		case tys[nm] == InfNumeral:
-			// Output numeric values.
-			fmt.Printf("%s = %d\n", nm, val)
-
-		case tys[nm] == InfAtom:
-			// Output symbolic values.
-			sym := "[invalid]"
-			if val >= 0 && val < len(p.IntToSym) {
-				sym = p.IntToSym[val]
-			}
-			fmt.Printf("%s = %s\n", nm, sym)
-
-		default:
-			// Ignore non-variables.
-		}
+		a.parseQMASMOutputLine(p, haveVar, tys, ln)
 	}
 	err = r.Close()
 	CheckError(err)

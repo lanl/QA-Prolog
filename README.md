@@ -1,6 +1,8 @@
 QA Prolog
 =========
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/lanl/QA-Prolog)](https://goreportcard.com/report/github.com/lanl/QA-Prolog)
+
 Description
 -----------
 
@@ -49,7 +51,7 @@ The following journal publication discusses the design and implementation of QA 
 License
 -------
 
-QA Prolog is provided under a BSD-ish license with a "modifications must be indicated" clause.  See [the LICENSE file](https://github.com/lanl/QA-Prolog/blob/master/LICENSE.md) for the full text.
+QA Prolog is provided under a BSD-ish license with a "modifications must be indicated" clause.  See [the LICENSE file](LICENSE.md) for the full text.
 
 QA Prolog is part of the Hybrid Quantum-Classical Computing suite, known internally as LA-CC-16-032.
 

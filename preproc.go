@@ -114,9 +114,9 @@ func (a *ASTNode) maxNumeral() int {
 	return max
 }
 
-// AdjustIntBits increments the integer width to accomodate both the
-// maximum-valued numeric literal and the number of symbol literals.
-// This function assumes that StoreAtomNames has already been called.
+// AdjustIntBits increments the integer width to accommodate both the
+// maximum-valued numeric literal and the number of symbol literals.  This
+// function assumes that StoreAtomNames has already been called.
 func (a *ASTNode) AdjustIntBits(p *Parameters) {
 	// Ensure we can store the maximum integer literal.
 	b := BitsNeeded(a.maxNumeral())
@@ -183,17 +183,17 @@ func numToVerVar(n int) string {
 // they already appear in the given map.
 func (a *ASTNode) augmentVerilogVars(minN int, p2v map[string]string) map[string]string {
 	varNodes := a.FindByType(VariableType)
-	new_p2v := make(map[string]string, len(varNodes))
+	newP2v := make(map[string]string, len(varNodes))
 	for _, pv := range varNodes {
 		pVar := pv.Text
 		if _, seen := p2v[pVar]; seen {
 			continue
 		}
-		if _, seen := new_p2v[pVar]; seen {
+		if _, seen := newP2v[pVar]; seen {
 			continue
 		}
-		new_p2v[pVar] = numToVerVar(minN)
+		newP2v[pVar] = numToVerVar(minN)
 		minN++
 	}
-	return new_p2v
+	return newP2v
 }
