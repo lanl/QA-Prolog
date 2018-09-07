@@ -13,6 +13,9 @@ import (
 	"strings"
 )
 
+//go:generate pigeon -o parser.go parser.peg
+//go:generate stringer -type=ASTNodeType
+
 var notify *log.Logger // Help notify the user of warnings and errors.
 
 // Empty is used to treat maps as sets.

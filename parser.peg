@@ -9,7 +9,6 @@
 package main
 
 // An ASTNodeType indicates the type of AST node we're working with.
-//go:generate stringer -type=ASTNodeType
 type ASTNodeType int
 
 // Declare all of the AST node types we intend to use.
