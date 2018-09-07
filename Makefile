@@ -1,6 +1,11 @@
-# Build the Quantum Annealing Prolog compiler
-# By Scott Pakin <pakin@lanl.gov>
+###############################################
+# Build the Quantum Annealing Prolog compiler #
+# By Scott Pakin <pakin@lanl.gov>             #
+###############################################
 
+prefix = /usr/local
+bindir = $(prefix)/bin
+INSTALL = install
 GO = go
 GO_SOURCES = \
 	qa-prolog.go \
@@ -25,4 +30,7 @@ clean:
 maintainer-clean:
 	$(RM) parser.go astnodetype_string.go
 
-.PHONY: all clean maintainer-clean
+install: qa-prolog
+	$(INSTALL) -m 0755 -D qa-prolog $(DESTDIR)$(bindir)
+
+.PHONY: all clean maintainer-clean install
