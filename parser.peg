@@ -143,7 +143,6 @@ Query <- "?-" Skip ps:PredicateList {
 	for v := range vSet {
 		vList = append(vList, v)
 	}
-	sort.Strings(vList)
 
 	// Insert a head predicate so we can process the query as if it were a
 	// clause.
