@@ -148,8 +148,8 @@ func main() {
 	// Compile the Verilog code to an EDIF netlist.
 	CreateYosysScript(&p)
 	VerbosePrintf(&p, "Converting Verilog code to an EDIF netlist")
-	RunCommand(&p, "yosys", "-q", p.OutFileBase+".v", p.OutFileBase+".ys",
-		"-b", "edif", "-o", p.OutFileBase+".edif")
+	RunCommand(&p, "yosys", "-q", "-s", p.OutFileBase+".ys",
+		"-b", "edif", "-o", p.OutFileBase+".edif", p.OutFileBase+".v")
 
 	// Compile the EDIF netlist to QMASM code.
 	VerbosePrintf(&p, "Converting the EDIF netlist to QMASM code")

@@ -53,7 +53,7 @@ func CreateYosysScript(p *Parameters) {
 
 	// Write some boilerplate text to it.
 	fmt.Fprintln(ys, "### Design synthesis")
-	fmt.Fprintf(ys, "### Usage: yosys %s.v %s.ys -b edif -o %s.edif\n",
+	fmt.Fprintf(ys, "### Usage: yosys -s %s.ys -b edif -o %s.edif %s.v\n",
 		p.OutFileBase, p.OutFileBase, p.OutFileBase)
 	fmt.Fprint(ys, `
 # Check design hierarchy.
