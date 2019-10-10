@@ -31,6 +31,7 @@ maintainer-clean:
 	$(RM) parser.go astnodetype_string.go
 
 install: qa-prolog
-	$(INSTALL) -m 0755 -D qa-prolog $(DESTDIR)$(bindir)/qa-prolog
+	$(INSTALL) -m 0755 -d $(DESTDIR)$(bindir)
+	$(INSTALL) -m 0755 qa-prolog $(DESTDIR)$(bindir)/qa-prolog
 
 .PHONY: all clean maintainer-clean install
