@@ -1,0 +1,65 @@
+cff-version: 1.2.0
+message: "Please cite the following publication when referencing QA Prolog"
+title: "QA Prolog"
+type: software
+authors:
+  - given-names: Scott
+    family-names: Pakin
+    orcid: "https://orcid.org/0000-0002-5220-1985"
+repository-code: "https://github.com/lanl/QA-Prolog"
+license-url: "https://github.com/lanl/QA-Prolog/blob/master/LICENSE.md"
+preferred-citation:
+  type: article
+  authors:
+    - given-names: Scott
+      family-names: Pakin
+      orcid: "https://orcid.org/0000-0002-5220-1985"
+  editors:
+    - given-names: Ferdinando
+      family-names: Fioretto
+    - given-names: Enrico
+      family-names: Pontelli
+  publisher:
+    name: "Cambridge University Press"
+  doi: "10.1017/S1471068418000066"
+  url: "https://www.cambridge.org/core/journals/theory-and-practice-of-logic-programming/article/performing-fully-parallel-constraint-logic-programming-on-a-quantum-annealer/AB4CCF2D913D0325F770B3DA02AA262D"
+  journal: "Theory and Practice of Logic Programming"
+  issue-title: "Special Issue on Parallel and Distributed Logic Programming"
+  month: 9
+  start: 928
+  end: 949
+  title: "Performing Fully Parallel Constraint Logic Programming on a Quantum Annealer"
+  volume: 18
+  issue: 5-6
+  year: 2018
+  issn: 1475-3081
+  identifiers:
+    - type: other
+      value: "arXiv:1804.00036 [cs.PL]"
+      description: "The arXiv preprint of the paper"
+  languages:
+    - en
+  keywords:
+    - quantum annealing
+    - quantum computing
+    - constraint logic programming
+    - Prolog
+    - D-Wave
+  abstract: >-
+    A quantum annealer exploits quantum effects to solve a particular
+    type of optimization problem. The advantage of this specialized
+    hardware is that it effectively considers all possible solutions
+    in parallel, thereby potentially outperforming classical computing
+    systems. However, despite quantum annealers having recently become
+    commercially available, there are relatively few high-level
+    programming models that target these devices. In this article, we
+    show how to compile a subset of Prolog enhanced with support for
+    constraint logic programming into a two-local Ising-model
+    Hamiltonian suitable for execution on a quantum annealer. In
+    particular, we describe the series of transformations one can
+    apply to convert constraint logic programs expressed in Prolog
+    into an executable form that bears virtually no resemblance to a
+    classical machine model yet that evaluates the specified
+    constraints in a fully parallel manner. We evaluate our efforts on
+    a 1,095-qubit D-Wave 2X quantum annealer and describe the
+    approach's associated capabilities and shortcomings.
